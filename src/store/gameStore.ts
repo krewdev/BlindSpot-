@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Box, Profile, Match, PlayerRole, ObjectClass, GameMode, RLHFPrompt, RLHFChoice, JudgeTrack, MatchHistoryEntry, AchievementBadgeId } from '@/lib/types';
 import { scoreMatch } from '@/lib/scoring';
 import { MOCK_RLHF_PROMPTS } from '@/lib/gameModes';
-import { dbSyncProfile, dbAddMatch } from '@/lib/db';
+import { dbSyncProfile, dbAddMatch, dbGetPrompts, dbCreatePrompt, dbDeletePrompt, dbGetImages, dbCreateImage, dbDeleteImage } from '@/lib/db';
 
 const isClient = typeof window !== 'undefined';
 
@@ -105,6 +105,14 @@ interface GameState {
   // Hacking Actions
   submitHackingCommand: (command: string, txSig?: string) => void;
 
+  customPrompts: RLHFPrompt[];
+  customImages: { id: string; imageUrl: string; aiBoxes: Box[] }[];
+  loadQuestionsFromDb: () => Promise<void>;
+  addCustomPrompt: (prompt: RLHFPrompt) => Promise<boolean>;
+  deleteCustomPrompt: (id: string) => Promise<boolean>;
+  addCustomImage: (id: string, url: string, aiBoxes: Box[]) => Promise<boolean>;
+  deleteCustomImage: (id: string) => Promise<boolean>;
+
   // Shared Actions
   nextRound: () => void;
   resetGame: () => void;
@@ -179,6 +187,19 @@ const checkBadges = (
   return newBadges;
 };
 
+const resolveAiBoxesForImage = (
+  imageUrl: string,
+  customImages: { id: string; imageUrl: string; aiBoxes: Box[] }[]
+): Box[] => {
+  const custom = customImages.find(img => img.imageUrl === imageUrl);
+  if (custom) return custom.aiBoxes;
+
+  const defaultIdx = DEFAULT_IMAGES.indexOf(imageUrl);
+  if (defaultIdx !== -1) return MOCK_AI_BOXES[defaultIdx] || [];
+
+  return [];
+};
+
 // ─── Store ────────────────────────────────────────────────────────────
 
 export const useGameStore = create<GameState>()(
@@ -192,6 +213,8 @@ export const useGameStore = create<GameState>()(
       queueStatus: 'idle',
       earnedTokens: 0,
       matchHistory: [],
+      customPrompts: [],
+      customImages: [],
       modelStatsHistory: SEED_MODEL_ACCURACY_HISTORY,
 
       // Vision Hunt
@@ -298,6 +321,66 @@ export const useGameStore = create<GameState>()(
       setMatch: (match) => set({ currentMatch: match }),
       setGameMode: (gameMode) => set({ gameMode }),
       setQueueStatus: (queueStatus) => set({ queueStatus }),
+
+      loadQuestionsFromDb: async () => {
+        const promptsRes = await dbGetPrompts();
+        const imagesRes = await dbGetImages();
+        
+        const dbPrompts = promptsRes.success && promptsRes.data ? promptsRes.data : [];
+        const dbImages = imagesRes.success && imagesRes.data ? imagesRes.data : [];
+
+        // Dynamic feed: merge custom DB prompts and static ones
+        const mergedPrompts = [...dbPrompts, ...MOCK_RLHF_PROMPTS];
+        
+        set({
+          customPrompts: dbPrompts,
+          customImages: dbImages,
+          rlhfPrompts: mergedPrompts
+        });
+
+        // Also update matchImages if custom images exist
+        if (dbImages.length > 0) {
+          const mergedImages = [...dbImages.map(img => img.imageUrl), ...DEFAULT_IMAGES];
+          const initialAiBoxes = resolveAiBoxesForImage(mergedImages[0], dbImages);
+          set({
+            matchImages: mergedImages,
+            aiBoxes: initialAiBoxes,
+            currentImageIndex: 0
+          });
+        }
+      },
+      addCustomPrompt: async (prompt) => {
+        const res = await dbCreatePrompt(prompt);
+        if (res.success) {
+          await get().loadQuestionsFromDb();
+          return true;
+        }
+        return false;
+      },
+      deleteCustomPrompt: async (id) => {
+        const res = await dbDeletePrompt(id);
+        if (res.success) {
+          await get().loadQuestionsFromDb();
+          return true;
+        }
+        return false;
+      },
+      addCustomImage: async (id, url, aiBoxes) => {
+        const res = await dbCreateImage(id, url, aiBoxes);
+        if (res.success) {
+          await get().loadQuestionsFromDb();
+          return true;
+        }
+        return false;
+      },
+      deleteCustomImage: async (id) => {
+        const res = await dbDeleteImage(id);
+        if (res.success) {
+          await get().loadQuestionsFromDb();
+          return true;
+        }
+        return false;
+      },
 
       // ─── Vision Hunt Actions ───────────────────────────────────────────
 
@@ -695,10 +778,12 @@ export const useGameStore = create<GameState>()(
         }
         // Vision Hunt
         const nextIndex = (state.currentImageIndex + 1) % state.matchImages.length;
+        const nextImageUrl = state.matchImages[nextIndex];
+        const resolvedAiBoxes = resolveAiBoxesForImage(nextImageUrl, state.customImages);
         return {
           currentImageIndex: nextIndex,
           boxes: [],
-          aiBoxes: MOCK_AI_BOXES[nextIndex],
+          aiBoxes: resolvedAiBoxes,
           matchScore: null,
           playerRole: 'hunter' as PlayerRole,
         };

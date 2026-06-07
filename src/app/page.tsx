@@ -10,6 +10,7 @@ import Leaderboard from '@/components/game/Leaderboard';
 import MetricsDashboard from '@/components/analytics/MetricsDashboard';
 import ProfileTab from '@/components/game/ProfileTab';
 import AuthModal from '@/components/auth/AuthModal';
+import AdminConsole from '@/components/game/AdminConsole';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Keypair } from '@solana/web3.js';
 import { GAME_MODES } from '@/lib/gameModes';
@@ -125,11 +126,12 @@ export default function Home() {
     judgeStreak,
     judgeTrack,
     setJudgeTrack,
+    loadQuestionsFromDb,
   } = useGameStore();
 
   const { publicKey, signMessage } = useWallet();
   const [simulatedQueueTime, setSimulatedQueueTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics' | 'profile'>('leaderboard');
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics' | 'profile' | 'dev'>('leaderboard');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -138,6 +140,7 @@ export default function Home() {
       .then((res) => {
         if (res.success) {
           console.log(res.message);
+          loadQuestionsFromDb().catch((err) => console.error("Error loading questions from DB:", err));
         } else {
           console.error(res.error);
         }
@@ -685,12 +688,25 @@ export default function Home() {
                   <User className="w-3.5 h-3.5" />
                   Profile
                 </button>
+                <button
+                  id="tab-dev"
+                  onClick={() => setActiveTab('dev')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                    activeTab === 'dev'
+                      ? 'bg-pink-600 text-white shadow shadow-pink-500/30'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  Dev Portal
+                </button>
               </div>
 
               {/* Tab Content */}
               {activeTab === 'leaderboard' && <Leaderboard />}
               {activeTab === 'analytics' && <MetricsDashboard />}
               {activeTab === 'profile' && <ProfileTab />}
+              {activeTab === 'dev' && <AdminConsole />}
             </div>
           </div>
         )}

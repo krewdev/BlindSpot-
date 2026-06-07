@@ -2,12 +2,113 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { RLHFPrompt, RLHFChoice } from '@/lib/types';
-import { Scale, Clock, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Scale, Clock, ChevronRight, Sparkles, CheckCircle2, Code2, MessageSquare } from 'lucide-react';
 
 interface JudgeModeProps {
   prompt: RLHFPrompt;
   onSubmit: (choice: RLHFChoice, reasoning: string, timeMs: number) => void;
 }
+
+// ─── Code Block Renderer ─────────────────────────────────────────────────────
+// Applies simple token-level coloring for a terminal-style code display.
+
+function CodeBlock({ code, lang }: { code: string; lang?: string }) {
+  // Very lightweight syntax highlighter — no external dep needed
+  const highlighted = code
+    // Keywords
+    .replace(/\b(def|return|if|else|elif|for|while|in|import|from|class|True|False|None|function|const|let|var|type|interface|SELECT|FROM|WHERE|ORDER|BY|LIMIT|AS)\b/g,
+      '<span class="text-violet-400 font-bold">$1</span>')
+    // Strings
+    .replace(/(["'`])((?:\\.|(?!\1)[^\\])*)\1/g,
+      '<span class="text-amber-300">$1$2$1</span>')
+    // Numbers
+    .replace(/\b(\d+)\b/g, '<span class="text-rose-400">$1</span>')
+    // Comments (-- or #)
+    .replace(/(--[^\n]*|#[^\n]*)/g, '<span class="text-zinc-500 italic">$1</span>')
+    // Type annotations :
+    .replace(/: (int|str|bool|float|None|void|unknown|number|string|boolean)\b/g,
+      ': <span class="text-emerald-400">$1</span>');
+
+  return (
+    <div className="flex flex-col rounded-xl overflow-hidden border border-zinc-700/60 text-[11px]">
+      {/* Title bar */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700/60">
+        <div className="flex gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+        </div>
+        <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest ml-1">{lang ?? 'code'}</span>
+      </div>
+      <pre
+        className="p-4 bg-zinc-950 font-mono leading-relaxed overflow-x-auto max-h-64 text-zinc-300 whitespace-pre"
+        dangerouslySetInnerHTML={{ __html: highlighted }}
+      />
+    </div>
+  );
+}
+
+// ─── Response Renderer ────────────────────────────────────────────────────────
+// Detects if the content is mostly code and renders appropriately.
+
+function ResponseContent({ text, isCoding }: { text: string; isCoding: boolean }) {
+  if (isCoding) {
+    // Split on markdown code fences if present, otherwise treat the whole thing as code
+    const parts = text.split(/```(?:\w+)?\n?/);
+    if (parts.length > 1) {
+      return (
+        <div className="flex flex-col gap-2">
+          {parts.map((part, i) => {
+            const trimmed = part.trim();
+            if (!trimmed) return null;
+            if (i % 2 === 1) {
+              return <CodeBlock key={i} code={trimmed} />;
+            }
+            return (
+              <p key={i} className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{trimmed}</p>
+            );
+          })}
+        </div>
+      );
+    }
+    // Heuristic: if > 30% of lines start with spaces or keywords, treat as code
+    const lines = text.split('\n');
+    const codeLines = lines.filter(l => /^\s+\S|^(def |import |from |SELECT|function |const |let )/.test(l));
+    if (codeLines.length / lines.length > 0.3) {
+      return <CodeBlock code={text} />;
+    }
+  }
+  // Fallback: plain pre-wrap text
+  return (
+    <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap font-mono bg-zinc-950/50 p-3 rounded-lg border border-zinc-800/50 max-h-64 overflow-y-auto">
+      {text}
+    </div>
+  );
+}
+
+// ─── Category / Difficulty helpers ────────────────────────────────────────────
+
+const getCategoryColor = (cat: string) => {
+  switch (cat) {
+    case 'reasoning':  return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+    case 'creativity': return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+    case 'factual':    return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    case 'coding':     return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+    case 'safety':     return 'text-red-400 bg-red-500/10 border-red-500/20';
+    default:           return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+  }
+};
+
+const getDifficultyColor = (diff: string) => {
+  switch (diff) {
+    case 'easy':   return 'text-emerald-400';
+    case 'medium': return 'text-amber-400';
+    case 'hard':   return 'text-red-400';
+    default:       return 'text-zinc-400';
+  }
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
   const [selected, setSelected] = useState<RLHFChoice>(null);
@@ -16,6 +117,8 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const startTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isCoding = prompt.category === 'coding';
 
   // Timer runs on mount and resets when component is remounted via key prop
   useEffect(() => {
@@ -38,36 +141,32 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
     onSubmit(selected, reasoning, totalTime);
   };
 
-  const getCategoryColor = (cat: string) => {
-    switch (cat) {
-      case 'reasoning': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-      case 'creativity': return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
-      case 'factual': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-      case 'coding': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-      case 'safety': return 'text-red-400 bg-red-500/10 border-red-500/20';
-      default: return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
-    }
-  };
-
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case 'easy': return 'text-emerald-400';
-      case 'medium': return 'text-amber-400';
-      case 'hard': return 'text-red-400';
-      default: return 'text-zinc-400';
-    }
-  };
-
   return (
     <div className="flex flex-col gap-5 w-full max-w-4xl">
+
       {/* Header Bar */}
       <div className="flex items-center justify-between p-4 bg-zinc-900/60 backdrop-blur border border-zinc-800 rounded-xl">
         <div className="flex items-center gap-3">
-          <div className="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-            <Scale className="w-5 h-5 text-amber-400" />
+          <div className={`p-2 rounded-lg border ${isCoding ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+            {isCoding
+              ? <Code2 className="w-5 h-5 text-amber-400" />
+              : <Scale className="w-5 h-5 text-amber-400" />
+            }
           </div>
           <div>
-            <h3 className="text-sm font-bold text-zinc-200">THE JUDGE</h3>
+            <h3 className="text-sm font-bold text-zinc-200">
+              THE JUDGE
+              {isCoding && (
+                <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                  ⌨️ CODING TRACK
+                </span>
+              )}
+              {!isCoding && (
+                <span className="ml-2 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                  💬 GENERAL TRACK
+                </span>
+              )}
+            </h3>
             <p className="text-[10px] text-zinc-500">Which AI response is better? Your vote trains the next generation.</p>
           </div>
         </div>
@@ -86,9 +185,24 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
       </div>
 
       {/* The Prompt */}
-      <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-xl">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 block mb-2">USER PROMPT</span>
-        <p className="text-sm text-zinc-100 leading-relaxed font-medium">{prompt.prompt}</p>
+      <div className={`p-5 rounded-xl border ${isCoding ? 'bg-zinc-950 border-amber-500/20' : 'bg-zinc-900/40 border-zinc-800'}`}>
+        <div className="flex items-center gap-2 mb-2">
+          {isCoding
+            ? <Code2 className="w-3.5 h-3.5 text-amber-400" />
+            : <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
+          }
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            {isCoding ? 'CODING CHALLENGE' : 'USER PROMPT'}
+          </span>
+        </div>
+        <p className={`text-sm leading-relaxed font-medium ${isCoding ? 'font-mono text-amber-200' : 'text-zinc-100'}`}>
+          {prompt.prompt}
+        </p>
+        {isCoding && (
+          <p className="text-[10px] text-zinc-600 mt-2 italic">
+            Evaluate: correctness, efficiency, readability, error handling, and use of language features.
+          </p>
+        )}
       </div>
 
       {/* Side-by-Side Responses */}
@@ -112,9 +226,7 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
             </span>
             {selected === 'A' && <CheckCircle2 size={16} className="text-amber-400" />}
           </div>
-          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto font-mono bg-zinc-950/50 p-3 rounded-lg border border-zinc-800/50">
-            {prompt.responseA}
-          </div>
+          <ResponseContent text={prompt.responseA} isCoding={isCoding} />
         </button>
 
         {/* Response B */}
@@ -136,9 +248,7 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
             </span>
             {selected === 'B' && <CheckCircle2 size={16} className="text-indigo-400" />}
           </div>
-          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto font-mono bg-zinc-950/50 p-3 rounded-lg border border-zinc-800/50">
-            {prompt.responseB}
-          </div>
+          <ResponseContent text={prompt.responseB} isCoding={isCoding} />
         </button>
       </div>
 
@@ -164,7 +274,9 @@ export default function JudgeMode({ prompt, onSubmit }: JudgeModeProps) {
           <textarea
             value={reasoning}
             onChange={(e) => setReasoning(e.target.value)}
-            placeholder="e.g., Response B is more accurate and better structured..."
+            placeholder={isCoding
+              ? 'e.g., Response B uses O(√n) time complexity vs O(n), making it significantly faster...'
+              : 'e.g., Response B is more accurate and better structured...'}
             className="w-full p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-300 placeholder:text-zinc-600 resize-none h-20 focus:outline-none focus:border-amber-500/40 transition-colors"
           />
         </div>

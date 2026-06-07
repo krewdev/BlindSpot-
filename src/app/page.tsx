@@ -7,6 +7,7 @@ import JudgeMode from '@/components/game/JudgeMode';
 import CaptionClash from '@/components/game/CaptionClash';
 import BugBounty from '@/components/game/BugBounty';
 import Leaderboard from '@/components/game/Leaderboard';
+import MetricsDashboard from '@/components/analytics/MetricsDashboard';
 import AuthModal from '@/components/auth/AuthModal';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Keypair } from '@solana/web3.js';
@@ -30,6 +31,10 @@ import {
   Bug,
   Zap,
   Flame,
+  BarChart2,
+  Trophy,
+  Code2,
+  Brain,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -115,9 +120,12 @@ export default function Home() {
     submitJudgment,
     totalJudgments,
     judgeStreak,
+    judgeTrack,
+    setJudgeTrack,
   } = useGameStore();
 
   const [simulatedQueueTime, setSimulatedQueueTime] = useState(0);
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics'>('leaderboard');
 
   const activeModeConfig = GAME_MODES.find((m) => m.id === gameMode)!;
   const activeColors = COLOR_MAP[activeModeConfig.color];
@@ -520,20 +528,110 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={handleStartQueue}
-                    className={`w-full sm:w-auto px-8 py-4 bg-gradient-to-r ${activeColors.gradient} text-white font-bold rounded-2xl shadow-xl ${activeColors.glow} hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3`}
-                  >
-                    <Play size={18} fill="white" />
-                    START {activeModeConfig.name.toUpperCase()}
-                  </button>
+                  {/* For The Judge mode: show track selector instead of plain Start button */}
+                  {gameMode === 'the_judge' ? (
+                    <div className="w-full flex flex-col gap-4">
+                      <p className="text-xs text-zinc-500 text-center">Select your annotator specialty to get matched with the right prompts:</p>
+                      <div className="grid grid-cols-2 gap-3 w-full">
+                        {/* Coding Track */}
+                        <button
+                          id="track-coding"
+                          onClick={() => { setJudgeTrack('coding'); handleStartQueue(); }}
+                          className={`group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+                            judgeTrack === 'coding'
+                              ? 'border-amber-500/60 bg-amber-950/20 shadow-lg shadow-amber-500/10'
+                              : 'border-zinc-700 bg-zinc-900/40 hover:border-amber-500/40 hover:bg-amber-950/10'
+                          }`}
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                            <Code2 className="w-6 h-6 text-amber-400" />
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-sm font-black text-white">⌨️ Coding</span>
+                            <span className="text-[10px] text-zinc-500 text-center leading-relaxed">Python · TypeScript · SQL · React · System Design</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            +0.30 BLND / round
+                          </span>
+                          <div className="w-full py-2 bg-gradient-to-r from-amber-600 to-orange-600 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5">
+                            <Play size={12} fill="white" />
+                            Enter Coding Arena
+                          </div>
+                        </button>
+
+                        {/* General Track */}
+                        <button
+                          id="track-general"
+                          onClick={() => { setJudgeTrack('general'); handleStartQueue(); }}
+                          className={`group flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+                            judgeTrack === 'general'
+                              ? 'border-blue-500/60 bg-blue-950/20 shadow-lg shadow-blue-500/10'
+                              : 'border-zinc-700 bg-zinc-900/40 hover:border-blue-500/40 hover:bg-blue-950/10'
+                          }`}
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                            <Brain className="w-6 h-6 text-blue-400" />
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-sm font-black text-white">💬 General</span>
+                            <span className="text-[10px] text-zinc-500 text-center leading-relaxed">Reasoning · Creativity · Factual · Ethics & Safety</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                            +0.25 BLND / round
+                          </span>
+                          <div className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5">
+                            <Play size={12} fill="white" />
+                            Enter General Arena
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleStartQueue}
+                      className={`w-full sm:w-auto px-8 py-4 bg-gradient-to-r ${activeColors.gradient} text-white font-bold rounded-2xl shadow-xl ${activeColors.glow} hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3`}
+                    >
+                      <Play size={18} fill="white" />
+                      START {activeModeConfig.name.toUpperCase()}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Leaderboard Section */}
-            <div className="mt-4 w-full">
-              <Leaderboard />
+            {/* Tab switcher: Leaderboard / Analytics */}
+            <div className="mt-4 w-full flex flex-col gap-4">
+              {/* Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-zinc-900/60 border border-zinc-800 rounded-xl w-fit">
+                <button
+                  id="tab-leaderboard"
+                  onClick={() => setActiveTab('leaderboard')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                    activeTab === 'leaderboard'
+                      ? 'bg-zinc-700 text-white shadow'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  Leaderboard
+                </button>
+                <button
+                  id="tab-analytics"
+                  onClick={() => setActiveTab('analytics')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                    activeTab === 'analytics'
+                      ? 'bg-indigo-600 text-white shadow shadow-indigo-500/30'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  Analytics
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === 'leaderboard' && <Leaderboard />}
+              {activeTab === 'analytics' && <MetricsDashboard />}
             </div>
           </div>
         )}

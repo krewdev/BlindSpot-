@@ -1,5 +1,7 @@
 // ─── Core Profile & Match ───────────────────────────────────────────
 
+export type JudgeTrack = 'coding' | 'general';
+
 export interface Profile {
   id: string;
   username: string | null;
@@ -7,6 +9,7 @@ export interface Profile {
   reputation_score: number;
   matches_played: number;
   created_at: string;
+  judge_track?: JudgeTrack;
 }
 
 export type MatchStatus = 'waiting' | 'in_progress' | 'completed';

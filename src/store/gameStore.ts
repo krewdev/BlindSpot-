@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Box, Profile, Match, PlayerRole, ObjectClass, GameMode, RLHFPrompt, RLHFChoice } from '@/lib/types';
+import { Box, Profile, Match, PlayerRole, ObjectClass, GameMode, RLHFPrompt, RLHFChoice, JudgeTrack } from '@/lib/types';
 import { scoreMatch } from '@/lib/scoring';
 import { MOCK_RLHF_PROMPTS } from '@/lib/gameModes';
 
@@ -25,6 +25,7 @@ interface GameState {
   rlhfPrompts: RLHFPrompt[];
   totalJudgments: number;
   judgeStreak: number;
+  judgeTrack: JudgeTrack | null;
 
   // ─── Caption Clash State ───────────────────────────────────────────
   captionClashCrops: { id: string; image: string; box: Box; originalClass: string }[];
@@ -58,6 +59,7 @@ interface GameState {
 
   // Judge Actions
   submitJudgment: (choice: RLHFChoice, reasoning: string) => void;
+  setJudgeTrack: (track: JudgeTrack) => void;
 
   // Caption Clash Actions
   submitCaption: (caption: string) => void;
@@ -108,6 +110,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   rlhfPrompts: MOCK_RLHF_PROMPTS,
   totalJudgments: 0,
   judgeStreak: 0,
+  judgeTrack: null,
 
   // Caption Clash
   captionClashCrops: [
@@ -192,6 +195,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // ─── Judge Actions ─────────────────────────────────────────────────
+
+  setJudgeTrack: (track: JudgeTrack) => {
+    const filtered = track === 'coding'
+      ? MOCK_RLHF_PROMPTS.filter(p => p.category === 'coding')
+      : MOCK_RLHF_PROMPTS.filter(p => p.category !== 'coding');
+    set({ judgeTrack: track, rlhfPrompts: filtered, currentPromptIndex: 0 });
+  },
 
   submitJudgment: (choice, reasoning) => {
     // In production, this would send the judgment to the backend.
@@ -358,6 +368,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     rlhfPrompts: MOCK_RLHF_PROMPTS,
     totalJudgments: 0,
     judgeStreak: 0,
+    judgeTrack: null,
     // Caption Clash reset
     currentCropIndex: 0,
     // Cyber Siege reset

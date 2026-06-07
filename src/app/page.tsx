@@ -6,6 +6,7 @@ import DrawingCanvas from '@/components/game/DrawingCanvas';
 import JudgeMode from '@/components/game/JudgeMode';
 import CaptionClash from '@/components/game/CaptionClash';
 import BugBounty from '@/components/game/BugBounty';
+import Leaderboard from '@/components/game/Leaderboard';
 import AuthModal from '@/components/auth/AuthModal';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Keypair } from '@solana/web3.js';
@@ -28,7 +29,6 @@ import {
   MessageSquare,
   Bug,
   Zap,
-  Target,
   Flame,
 } from 'lucide-react';
 
@@ -310,9 +310,7 @@ export default function Home() {
       <header className="border-b border-zinc-800 bg-zinc-900/40 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`${activeColors.bg} p-2 rounded-xl shadow-lg ${activeColors.glow} border ${activeColors.border}`}>
-              <Target className={`w-5 h-5 ${activeColors.text}`} />
-            </div>
+            <img src="/logo.png" className="w-8 h-8 rounded-xl shadow-lg border border-zinc-800/80 object-cover" alt="BlindSpot Logo" />
             <h1 className="font-black tracking-widest text-lg bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
               BLINDSPOT
             </h1>
@@ -531,6 +529,11 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Leaderboard Section */}
+            <div className="mt-4 w-full">
+              <Leaderboard />
             </div>
           </div>
         )}

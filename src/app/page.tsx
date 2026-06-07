@@ -14,6 +14,8 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Keypair } from '@solana/web3.js';
 import { GAME_MODES } from '@/lib/gameModes';
 import { RLHFChoice, Match } from '@/lib/types';
+import { dbInitSchema } from '@/lib/db';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   Swords,
   Coins,
@@ -125,12 +127,22 @@ export default function Home() {
     setJudgeTrack,
   } = useGameStore();
 
+  const { publicKey, signMessage } = useWallet();
   const [simulatedQueueTime, setSimulatedQueueTime] = useState(0);
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics' | 'profile'>('leaderboard');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    dbInitSchema()
+      .then((res) => {
+        if (res.success) {
+          console.log(res.message);
+        } else {
+          console.error(res.error);
+        }
+      })
+      .catch((err) => console.error("Error initializing database schema:", err));
   }, []);
 
   const activeModeConfig = GAME_MODES.find((m) => m.id === gameMode)!;
@@ -310,12 +322,32 @@ export default function Home() {
     setQueueStatus('searching');
   };
 
-  const handleSubmitVision = () => {
-    submitBoxes();
+  const handleSubmitVision = async () => {
+    let txSig: string | undefined = undefined;
+    if (publicKey && signMessage) {
+      try {
+        const message = new TextEncoder().encode("BLINDSPOT: Approve annotation dataset proof of consensus.");
+        const signature = await signMessage(message);
+        txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+      } catch (err) {
+        console.error("Signature rejected or failed:", err);
+      }
+    }
+    submitBoxes(txSig);
   };
 
-  const handleSubmitJudge = (choice: RLHFChoice, reasoning: string) => {
-    submitJudgment(choice, reasoning);
+  const handleSubmitJudge = async (choice: RLHFChoice, reasoning: string) => {
+    let txSig: string | undefined = undefined;
+    if (publicKey && signMessage) {
+      try {
+        const message = new TextEncoder().encode("BLINDSPOT: Approve annotation dataset proof of consensus.");
+        const signature = await signMessage(message);
+        txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+      } catch (err) {
+        console.error("Signature rejected or failed:", err);
+      }
+    }
+    submitJudgment(choice, reasoning, txSig);
   };
 
   if (!mounted) {

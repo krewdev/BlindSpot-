@@ -259,15 +259,13 @@ describe('useGameStore', () => {
       expect(useGameStore.getState().profile?.badges).toContain('HACKER_PRO');
     });
     
-    it('logout clears profile and earned statistics', () => {
+    it('logout clears profile but preserves earned statistics', () => {
       useGameStore.setState({ profile: mockProfile, earnedTokens: 4.5 });
       useGameStore.getState().logout();
       
       const state = useGameStore.getState();
       expect(state.profile).toBeNull();
-      expect(state.earnedTokens).toBe(0);
-      expect(state.matchHistory).toEqual([]);
-      expect(state.modelStatsHistory).toEqual(SEED_MODEL_ACCURACY_HISTORY);
+      expect(state.earnedTokens).toBe(4.5);
     });
   });
 });

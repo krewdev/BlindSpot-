@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Box, Profile, Match, PlayerRole, ObjectClass, GameMode, RLHFPrompt, RLHFChoice, JudgeTrack, MatchHistoryEntry, AchievementBadgeId } from '@/lib/types';
 import { scoreMatch } from '@/lib/scoring';
 import { MOCK_RLHF_PROMPTS } from '@/lib/gameModes';
+import { dbSyncProfile, dbAddMatch } from '@/lib/db';
 
 const isClient = typeof window !== 'undefined';
 
@@ -92,17 +93,17 @@ interface GameState {
   addBox: (box: Box) => void;
   removeBox: (id: string) => void;
   clearBoxes: () => void;
-  submitBoxes: () => void;
+  submitBoxes: (txSig?: string) => void;
 
   // Judge Actions
-  submitJudgment: (choice: RLHFChoice, reasoning: string) => void;
+  submitJudgment: (choice: RLHFChoice, reasoning: string, txSig?: string) => void;
   setJudgeTrack: (track: JudgeTrack) => void;
 
   // Caption Clash Actions
-  submitCaption: (caption: string) => void;
+  submitCaption: (caption: string, txSig?: string) => void;
 
   // Hacking Actions
-  submitHackingCommand: (command: string) => void;
+  submitHackingCommand: (command: string, txSig?: string) => void;
 
   // Shared Actions
   nextRound: () => void;
@@ -252,17 +253,26 @@ export const useGameStore = create<GameState>()(
       // ─── Core Actions ──────────────────────────────────────────────────
 
       setProfile: (profile) => set({ profile }),
-      updateUsername: (username) => set((state) => ({
-        profile: state.profile ? { ...state.profile, username } : null
-      })),
-      connectWallet: (wallet_address) => set((state) => ({
-        profile: state.profile ? { ...state.profile, wallet_address } : null
-      })),
+      updateUsername: (username) => {
+        set((state) => {
+          const updatedProfile = state.profile ? { ...state.profile, username } : null;
+          if (updatedProfile) {
+            dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+          }
+          return { profile: updatedProfile };
+        });
+      },
+      connectWallet: (walletAddress) => {
+        set((state) => {
+          const updatedProfile = state.profile ? { ...state.profile, wallet_address: walletAddress } : null;
+          if (updatedProfile) {
+            dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+          }
+          return { profile: updatedProfile };
+        });
+      },
       logout: () => set({
         profile: null,
-        earnedTokens: 0,
-        matchHistory: [],
-        modelStatsHistory: SEED_MODEL_ACCURACY_HISTORY,
         currentMatch: null,
         matchScore: null,
         queueStatus: 'idle',
@@ -299,7 +309,7 @@ export const useGameStore = create<GameState>()(
       })),
       clearBoxes: () => set({ boxes: [] }),
 
-      submitBoxes: () => {
+      submitBoxes: (txSig) => {
         const { boxes, aiBoxes, selectedClass } = get();
         const { overallScore } = scoreMatch(aiBoxes, boxes);
 
@@ -330,7 +340,7 @@ export const useGameStore = create<GameState>()(
             security: parseFloat(state.modelStats.securityDefense.toFixed(2))
           };
 
-          const txSig = `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
+          const resolvedTxSig = txSig || `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
           const matchId = `match-${Math.random().toString(36).substring(2, 9)}`;
 
           const newMatch: MatchHistoryEntry = {
@@ -340,7 +350,7 @@ export const useGameStore = create<GameState>()(
             role: `Hunter (${selectedClass})`,
             score: finalScore,
             tokensEarned: tokens,
-            txSig,
+            txSig: resolvedTxSig,
             verified: true
           };
 
@@ -365,6 +375,16 @@ export const useGameStore = create<GameState>()(
             profile: updatedProfile
           };
         });
+
+        const updatedProfile = get().profile;
+        const newMatch = get().matchHistory[get().matchHistory.length - 1];
+
+        if (updatedProfile) {
+          dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+          if (newMatch) {
+            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+          }
+        }
       },
 
       // ─── Judge Actions ─────────────────────────────────────────────────
@@ -376,7 +396,7 @@ export const useGameStore = create<GameState>()(
         set({ judgeTrack: track, rlhfPrompts: filtered, currentPromptIndex: 0 });
       },
 
-      submitJudgment: (choice, reasoning) => {
+      submitJudgment: (choice, reasoning, txSig) => {
         const prompt = get().rlhfPrompts[get().currentPromptIndex];
 
         const aLen = prompt.responseA.length;
@@ -407,7 +427,7 @@ export const useGameStore = create<GameState>()(
             security: parseFloat(state.modelStats.securityDefense.toFixed(2))
           };
 
-          const txSig = `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
+          const resolvedTxSig = txSig || `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
           const matchId = `match-${Math.random().toString(36).substring(2, 9)}`;
 
           const currentStreak = agreedWithConsensus ? state.judgeStreak + 1 : 0;
@@ -419,7 +439,7 @@ export const useGameStore = create<GameState>()(
             role: `Judge (${state.judgeTrack || 'general'})`,
             score,
             tokensEarned: totalReward,
-            txSig,
+            txSig: resolvedTxSig,
             verified: true
           };
 
@@ -446,11 +466,21 @@ export const useGameStore = create<GameState>()(
             profile: updatedProfile
           };
         });
+
+        const updatedProfile = get().profile;
+        const newMatch = get().matchHistory[get().matchHistory.length - 1];
+
+        if (updatedProfile) {
+          dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+          if (newMatch) {
+            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+          }
+        }
       },
 
       // ─── Caption Clash Actions ─────────────────────────────────────────
 
-      submitCaption: (caption) => {
+      submitCaption: (caption, txSig) => {
         const isDescriptive = caption.trim().length > 10;
         const score = isDescriptive ? 100 : 30;
         const reward = isDescriptive ? 0.20 : 0.05;
@@ -471,7 +501,7 @@ export const useGameStore = create<GameState>()(
             security: parseFloat(state.modelStats.securityDefense.toFixed(2))
           };
 
-          const txSig = `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
+          const resolvedTxSig = txSig || `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
           const matchId = `match-${Math.random().toString(36).substring(2, 9)}`;
 
           const newMatch: MatchHistoryEntry = {
@@ -481,7 +511,7 @@ export const useGameStore = create<GameState>()(
             role: 'Writer',
             score,
             tokensEarned: reward,
-            txSig,
+            txSig: resolvedTxSig,
             verified: true
           };
 
@@ -506,11 +536,21 @@ export const useGameStore = create<GameState>()(
             profile: updatedProfile
           };
         });
+
+        const updatedProfile = get().profile;
+        const newMatch = get().matchHistory[get().matchHistory.length - 1];
+
+        if (updatedProfile) {
+          dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+          if (newMatch) {
+            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+          }
+        }
       },
 
       // ─── Cyber Siege Actions ───────────────────────────────────────────
 
-      submitHackingCommand: (command) => {
+      submitHackingCommand: (command, txSig) => {
         const cmd = command.trim().toLowerCase();
         const logs = [...get().terminalLogs, `hunter@blindspot:~$ ${command}`];
         
@@ -569,7 +609,7 @@ export const useGameStore = create<GameState>()(
                 security: parseFloat(nextSecurityDefense.toFixed(2))
               };
 
-              const txSig = `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
+              const resolvedTxSig = txSig || `tx-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
               const matchId = `match-${Math.random().toString(36).substring(2, 9)}`;
 
               const newMatch: MatchHistoryEntry = {
@@ -579,7 +619,7 @@ export const useGameStore = create<GameState>()(
                 role: 'Hacker',
                 score: 100,
                 tokensEarned: 0.30,
-                txSig,
+                txSig: resolvedTxSig,
                 verified: true
               };
 
@@ -606,6 +646,16 @@ export const useGameStore = create<GameState>()(
                 profile: updatedProfile
               };
             });
+
+            const updatedProfile = get().profile;
+            const newMatch = get().matchHistory[get().matchHistory.length - 1];
+
+            if (updatedProfile) {
+              dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
+              if (newMatch) {
+                dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+              }
+            }
           }
         } else {
           logs.push(`shell: command not found: ${command}. Type 'help' for instructions.`);

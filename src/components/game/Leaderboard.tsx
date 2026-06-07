@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Eye, Scale, Bug, Coins, Sparkles } from 'lucide-react';
+import { dbGetLeaderboard } from '@/lib/db';
+import { Profile } from '@/lib/types';
 
 interface LeaderboardEntry {
   rank: number;
@@ -38,13 +40,42 @@ const TOP_HACKERS: LeaderboardEntry[] = [
 
 export default function Leaderboard() {
   const [activeTab, setActiveTab] = useState<'hunters' | 'judges' | 'hackers'>('hunters');
+  const [dbProfiles, setDbProfiles] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    async function loadLeaderboard() {
+      const res = await dbGetLeaderboard();
+      if (res.success && res.data) {
+        setDbProfiles(res.data);
+      }
+    }
+    loadLeaderboard();
+  }, []);
 
   const getEntries = () => {
+    let mockList: LeaderboardEntry[] = [];
     switch (activeTab) {
-      case 'hunters': return TOP_HUNTERS;
-      case 'judges': return TOP_JUDGES;
-      case 'hackers': return TOP_HACKERS;
+      case 'hunters': mockList = TOP_HUNTERS; break;
+      case 'judges': mockList = TOP_JUDGES; break;
+      case 'hackers': mockList = TOP_HACKERS; break;
     }
+    
+    if (dbProfiles.length === 0) return mockList;
+
+    const dbEntries: LeaderboardEntry[] = dbProfiles.map((p, idx) => ({
+      rank: 0,
+      username: p.username || 'Anonymous',
+      wallet: p.wallet_address ? `${p.wallet_address.substring(0, 4)}...${p.wallet_address.substring(p.wallet_address.length - 4)}` : 'Guest',
+      metricLabel: activeTab === 'hunters' ? 'IOU Alignment' : activeTab === 'judges' ? 'Max RLHF Streak' : 'CTFs Solved',
+      metricValue: activeTab === 'hunters' ? `${p.reputation_score.toFixed(1)}%` : activeTab === 'judges' ? `${p.matches_played}x` : `${p.matches_played}`,
+      tokens: p.reputation_score * 15,
+    }));
+
+    const combined = [...dbEntries, ...mockList]
+      .sort((a, b) => b.tokens - a.tokens)
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+    return combined.slice(0, 5);
   };
 
   const getTabStyles = (tab: 'hunters' | 'judges' | 'hackers') => {

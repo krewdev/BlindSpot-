@@ -3,9 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { Bug, Terminal, ShieldAlert, Cpu, CheckCircle2 } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function BugBounty() {
   const { terminalLogs, terminalChallengeSolved, submitHackingCommand, matchScore } = useGameStore();
+  const { publicKey, signMessage } = useWallet();
   const [input, setInput] = useState('');
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -20,11 +22,25 @@ export default function BugBounty() {
     inputRef.current?.focus();
   };
 
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const cmd = input.trim();
+    if (!cmd) return;
 
-    submitHackingCommand(input);
+    let txSig: string | undefined = undefined;
+    if (cmd.toLowerCase() === 'cat flag.txt' && terminalLogs.some(l => l.includes('Exploit Successful'))) {
+      if (publicKey && signMessage) {
+        try {
+          const message = new TextEncoder().encode("BLINDSPOT: Approve annotation dataset proof of consensus.");
+          const signature = await signMessage(message);
+          txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+        } catch (err) {
+          console.error("Signature rejected or failed:", err);
+        }
+      }
+    }
+
+    submitHackingCommand(cmd, txSig);
     setInput('');
   };
 

@@ -3,20 +3,32 @@
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MessageSquare, Sparkles, ChevronRight, Type, CheckCircle } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function CaptionClash() {
   const { captionClashCrops, currentCropIndex, submitCaption, matchScore } = useGameStore();
+  const { publicKey, signMessage } = useWallet();
   const [caption, setCaption] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const activeCrop = captionClashCrops[currentCropIndex];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!caption.trim()) return;
 
     setIsSubmitted(true);
-    submitCaption(caption);
+    let txSig: string | undefined = undefined;
+    if (publicKey && signMessage) {
+      try {
+        const message = new TextEncoder().encode("BLINDSPOT: Approve annotation dataset proof of consensus.");
+        const signature = await signMessage(message);
+        txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+      } catch (err) {
+        console.error("Signature rejected or failed:", err);
+      }
+    }
+    submitCaption(caption, txSig);
   };
 
   // Zoom crop calculation

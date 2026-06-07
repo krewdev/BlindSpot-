@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { AchievementBadgeId, Profile } from '@/lib/types';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { 
   User, 
   Wallet, 
@@ -65,11 +67,20 @@ const BADGE_DEFS = [
 
 export default function ProfileTab() {
   const { profile, earnedTokens, matchHistory, updateUsername, connectWallet, logout } = useGameStore();
+  const { publicKey, connected } = useWallet();
 
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState(profile?.username || '');
-  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
-  const [customWallet, setCustomWallet] = useState('');
+
+  // Auto-sync wallet address on connection
+  useEffect(() => {
+    if (connected && publicKey) {
+      const addr = publicKey.toBase58();
+      if (profile && profile.wallet_address !== addr) {
+        connectWallet(addr);
+      }
+    }
+  }, [connected, publicKey, profile, connectWallet]);
 
   if (!profile) return null;
 
@@ -77,21 +88,6 @@ export default function ProfileTab() {
     if (newUsername.trim()) {
       updateUsername(newUsername.trim());
       setIsEditingUsername(false);
-    }
-  };
-
-  const handleConnectMockWallet = () => {
-    const randomHex = Math.random().toString(36).substring(2, 12).toUpperCase();
-    const mockAddress = `BLND77${randomHex}pk99`;
-    connectWallet(mockAddress);
-  };
-
-  const handleConnectCustomWallet = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (customWallet.trim()) {
-      connectWallet(customWallet.trim());
-      setIsConnectingWallet(false);
-      setCustomWallet('');
     }
   };
 
@@ -186,63 +182,22 @@ export default function ProfileTab() {
           </div>
 
           <div className="mt-6 pt-6 border-t border-zinc-800 flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">SOLANA WALLET CONNECTION</span>
-              {profile.wallet_address && !profile.wallet_address.startsWith('GuestWallet_') ? (
-                <div className="flex items-center justify-between p-3 bg-zinc-950/80 border border-zinc-800 rounded-xl">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-xs text-zinc-300 font-mono truncate">{profile.wallet_address}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-zinc-950/80 border border-zinc-800 rounded-2xl">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Wallet className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] text-zinc-500 uppercase font-black">WALLET STATUS</span>
+                    <span className="text-xs text-zinc-300 font-mono truncate">
+                      {connected && publicKey ? publicKey.toBase58() : 'No external wallet connected'}
+                    </span>
                   </div>
-                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
-                    CONNECTED
-                  </span>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between p-3 bg-zinc-950/80 border border-amber-500/20 rounded-xl">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span className="text-xs text-amber-300 truncate">No payout address connected. Payments will remain virtual.</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2.5">
-                    <button 
-                      onClick={handleConnectMockWallet}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-500/15 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      GENERATE SOLANA WALLET
-                    </button>
-                    <button 
-                      onClick={() => setIsConnectingWallet(!isConnectingWallet)}
-                      className="px-4 py-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold rounded-xl text-xs transition-colors"
-                    >
-                      {isConnectingWallet ? 'CANCEL' : 'CONNECT CUSTOM ADDRESS'}
-                    </button>
-                  </div>
-
-                  {isConnectingWallet && (
-                    <form onSubmit={handleConnectCustomWallet} className="flex gap-2 mt-1.5 animate-fadeIn">
-                      <input 
-                        type="text" 
-                        value={customWallet}
-                        onChange={(e) => setCustomWallet(e.target.value)}
-                        placeholder="Enter 44-char Solana Address"
-                        className="flex-1 bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300 px-3 py-2 rounded-xl outline-none focus:border-indigo-500"
-                        required
-                        minLength={32}
-                        maxLength={44}
-                      />
-                      <button 
-                        type="submit"
-                        className="px-4 py-2 bg-zinc-900 border border-zinc-700 text-white font-bold rounded-xl text-xs hover:bg-zinc-800 transition-colors"
-                      >
-                        SAVE
-                      </button>
-                    </form>
-                  )}
+                <div className="shrink-0 flex items-center gap-2">
+                  <WalletMultiButton className="!bg-gradient-to-r !from-indigo-600 !to-violet-600 hover:!from-indigo-500 hover:!to-violet-500 hover:!scale-[1.02] !transition-all !h-10 !rounded-xl !text-xs !font-bold !font-sans !shadow-lg !shadow-indigo-500/15" />
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

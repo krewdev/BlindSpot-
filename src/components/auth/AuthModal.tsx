@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useGameStore } from '@/store/gameStore';
-import { Target, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 
 export default function AuthModal({ onLogin }: { onLogin: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -64,8 +64,8 @@ export default function AuthModal({ onLogin }: { onLogin: () => void }) {
         <div className="absolute w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full -top-10 -right-10 pointer-events-none" />
         
         <div className="flex flex-col items-center mb-6 relative z-10">
-          <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl mb-4">
-            <Target className="w-8 h-8 text-indigo-400" />
+          <div className="mb-4">
+            <img src="/logo.png" className="w-16 h-16 rounded-2xl shadow-lg border border-zinc-800/80 object-cover" alt="BlindSpot Logo" />
           </div>
           <h2 className="text-2xl font-black tracking-widest text-white uppercase">
             BLINDSPOT

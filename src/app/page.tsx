@@ -8,6 +8,7 @@ import CaptionClash from '@/components/game/CaptionClash';
 import BugBounty from '@/components/game/BugBounty';
 import Leaderboard from '@/components/game/Leaderboard';
 import MetricsDashboard from '@/components/analytics/MetricsDashboard';
+import ProfileTab from '@/components/game/ProfileTab';
 import AuthModal from '@/components/auth/AuthModal';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Keypair } from '@solana/web3.js';
@@ -125,7 +126,12 @@ export default function Home() {
   } = useGameStore();
 
   const [simulatedQueueTime, setSimulatedQueueTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics'>('leaderboard');
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics' | 'profile'>('leaderboard');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const activeModeConfig = GAME_MODES.find((m) => m.id === gameMode)!;
   const activeColors = COLOR_MAP[activeModeConfig.color];
@@ -311,6 +317,14 @@ export default function Home() {
   const handleSubmitJudge = (choice: RLHFChoice, reasoning: string) => {
     submitJudgment(choice, reasoning);
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100 font-sans items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-zinc-800 border-t-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100 font-sans">
@@ -627,11 +641,24 @@ export default function Home() {
                   <BarChart2 className="w-3.5 h-3.5" />
                   Analytics
                 </button>
+                <button
+                  id="tab-profile"
+                  onClick={() => setActiveTab('profile')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                    activeTab === 'profile'
+                      ? 'bg-violet-600 text-white shadow shadow-violet-500/30'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  Profile
+                </button>
               </div>
 
               {/* Tab Content */}
               {activeTab === 'leaderboard' && <Leaderboard />}
               {activeTab === 'analytics' && <MetricsDashboard />}
+              {activeTab === 'profile' && <ProfileTab />}
             </div>
           </div>
         )}

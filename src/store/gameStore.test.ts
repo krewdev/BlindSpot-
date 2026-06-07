@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useGameStore } from './gameStore';
-import { Box } from '@/lib/types';
+import { useGameStore, SEED_MODEL_ACCURACY_HISTORY } from './gameStore';
+import { Box, Profile } from '@/lib/types';
 
 describe('useGameStore', () => {
   beforeEach(() => {
     // Reset Zustand store state before each test
     useGameStore.getState().resetGame();
-    useGameStore.setState({ earnedTokens: 0 });
+    useGameStore.setState({ 
+      profile: null,
+      earnedTokens: 0,
+      matchHistory: [],
+      modelStatsHistory: SEED_MODEL_ACCURACY_HISTORY
+    });
   });
 
   it('has correct default initial state', () => {
@@ -21,6 +26,8 @@ describe('useGameStore', () => {
     expect(state.currentPromptIndex).toBe(0);
     expect(state.totalJudgments).toBe(0);
     expect(state.judgeStreak).toBe(0);
+    expect(state.matchHistory).toEqual([]);
+    expect(state.modelStatsHistory).toEqual(SEED_MODEL_ACCURACY_HISTORY);
   });
 
   it('handles game mode configuration switching', () => {
@@ -102,7 +109,7 @@ describe('useGameStore', () => {
       });
 
       // Player picks B (consensus!) and provides reasoning (earns bonus).
-      useGameStore.getState().submitJudgment('B', 'Reasoning longer than 10 chars', 1200);
+      useGameStore.getState().submitJudgment('B', 'Reasoning longer than 10 chars');
 
       const state = useGameStore.getState();
       expect(state.matchScore).toBe(100); // Consensus match!
@@ -131,7 +138,7 @@ describe('useGameStore', () => {
       });
 
       // Player picks A (against consensus)
-      useGameStore.getState().submitJudgment('A', 'Short', 1200);
+      useGameStore.getState().submitJudgment('A', 'Short');
 
       const state = useGameStore.getState();
       expect(state.matchScore).toBe(25); // Minor score
@@ -201,4 +208,67 @@ describe('useGameStore', () => {
       expect(state.matchScore).toBeNull();
     });
   });
+
+  describe('Profile and Achievements Actions', () => {
+    const mockProfile: Profile = {
+      id: 'test-user-id',
+      username: 'HunterTest',
+      wallet_address: null,
+      reputation_score: 50,
+      matches_played: 0,
+      created_at: new Date().toISOString(),
+      badges: []
+    };
+
+    it('updates user profile details and connect wallet', () => {
+      useGameStore.setState({ profile: mockProfile });
+      
+      useGameStore.getState().updateUsername('CyberWarrior');
+      expect(useGameStore.getState().profile?.username).toBe('CyberWarrior');
+
+      useGameStore.getState().connectWallet('SOL_ADDR_123456');
+      expect(useGameStore.getState().profile?.wallet_address).toBe('SOL_ADDR_123456');
+    });
+
+    it('logs completed matches to match history and updates model stats history', () => {
+      useGameStore.setState({ profile: mockProfile });
+      
+      // Submit descriptive caption
+      useGameStore.getState().submitCaption('A high resolution image of a vintage laptop.');
+      
+      const state = useGameStore.getState();
+      expect(state.matchHistory).toHaveLength(1);
+      expect(state.matchHistory[0].gameMode).toBe('caption_clash');
+      expect(state.matchHistory[0].score).toBe(100);
+      expect(state.matchHistory[0].tokensEarned).toBe(0.20);
+      
+      // Verify stats history appends a new entry
+      expect(state.modelStatsHistory).toHaveLength(SEED_MODEL_ACCURACY_HISTORY.length + 1);
+      expect(state.modelStatsHistory[state.modelStatsHistory.length - 1].round).toBe(`R${SEED_MODEL_ACCURACY_HISTORY.length + 1}`);
+    });
+
+    it('unlocks badges based on game achievements', () => {
+      useGameStore.setState({ profile: mockProfile });
+
+      // 1. Solve Cyber Siege to unlock HACKER_PRO badge
+      const store = useGameStore.getState();
+      store.submitHackingCommand('scan');
+      store.submitHackingCommand('exploit');
+      store.submitHackingCommand('cat flag.txt');
+
+      expect(useGameStore.getState().profile?.badges).toContain('HACKER_PRO');
+    });
+    
+    it('logout clears profile and earned statistics', () => {
+      useGameStore.setState({ profile: mockProfile, earnedTokens: 4.5 });
+      useGameStore.getState().logout();
+      
+      const state = useGameStore.getState();
+      expect(state.profile).toBeNull();
+      expect(state.earnedTokens).toBe(0);
+      expect(state.matchHistory).toEqual([]);
+      expect(state.modelStatsHistory).toEqual(SEED_MODEL_ACCURACY_HISTORY);
+    });
+  });
 });
+

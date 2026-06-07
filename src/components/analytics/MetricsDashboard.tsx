@@ -201,12 +201,9 @@ function ConsensusGaugeChart({ data }: { data: { name: string; value: number; fi
 // ─── Main Dashboard ───────────────────────────────────────────────────────
 
 export default function MetricsDashboard() {
-  const { modelStats, earnedTokens, totalJudgments, judgeStreak, profile } = useGameStore();
+  const { modelStats, earnedTokens, totalJudgments, judgeStreak, profile, modelStatsHistory } = useGameStore();
 
-  const historyData = useMemo(
-    () => mergeHistory(modelStats.visionMap, modelStats.rlhfPref, modelStats.captionAlign, modelStats.securityDefense),
-    [modelStats]
-  );
+  const historyData = modelStatsHistory;
 
   const consensusData = [
     { name: 'Vision mAP', value: modelStats.visionMap, fill: '#818cf8' },

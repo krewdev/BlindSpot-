@@ -2,6 +2,26 @@
 
 export type JudgeTrack = 'coding' | 'general';
 
+export type AchievementBadgeId = 'SHARP_EYE' | 'CONSENSUS_KING' | 'HACKER_PRO' | 'DATA_TYCOON' | 'SOL_VALIDATOR';
+
+export interface AchievementBadge {
+  id: AchievementBadgeId;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface MatchHistoryEntry {
+  id: string;
+  timestamp: string;
+  gameMode: GameMode;
+  role: string;
+  score: number;
+  tokensEarned: number;
+  txSig: string;
+  verified: boolean;
+}
+
 export interface Profile {
   id: string;
   username: string | null;
@@ -10,6 +30,7 @@ export interface Profile {
   matches_played: number;
   created_at: string;
   judge_track?: JudgeTrack;
+  badges?: AchievementBadgeId[];
 }
 
 export type MatchStatus = 'waiting' | 'in_progress' | 'completed';

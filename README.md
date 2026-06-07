@@ -1,5 +1,7 @@
 # BlindSpot (Phantom Duel) — PvP Data Annotation & Crypto Payout Arena
 
+![BlindSpot Repository Banner](public/banner.png)
+
 BlindSpot is a next-generation, gamified Web3 AI data annotation platform and competitive arena. Players compete in various head-to-head duels to annotate visual and textual data, verify consensus, audit safety prompts, and even run security pen-testing CTFs. 
 
 Every action logs high-fidelity human telemetry that is directly piped to fine-tune state-of-the-art AI models. In return, players earn `BLND` tokens and commit cryptographic Proof-of-Labels (PoL) to the Solana blockchain.

@@ -16,6 +16,7 @@ export async function dbInitSchema() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(123456);');
     
     // Profiles
     await client.query(`

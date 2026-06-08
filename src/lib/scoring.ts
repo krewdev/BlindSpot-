@@ -88,3 +88,46 @@ export function scoreMatch(
 
   return { overallScore, matches, missedCount, extraCount };
 }
+
+/**
+ * Calculates a bag-of-words cosine similarity score (0 to 1) between two captions.
+ * Cleans punctuation, splits into words, ignores words <= 2 characters, and compares frequency vectors.
+ */
+export function calculateCosineSimilarity(textA: string, textB: string): number {
+  if (!textA || !textB) return 0;
+  
+  const clean = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+      .split(/\s+/)
+      .filter(w => w.length > 2);
+
+  const wordsA = clean(textA);
+  const wordsB = clean(textB);
+
+  if (wordsA.length === 0 || wordsB.length === 0) return 0;
+
+  const freqA: Record<string, number> = {};
+  const freqB: Record<string, number> = {};
+
+  wordsA.forEach(w => freqA[w] = (freqA[w] || 0) + 1);
+  wordsB.forEach(w => freqB[w] = (freqB[w] || 0) + 1);
+
+  const allWords = new Set([...Object.keys(freqA), ...Object.keys(freqB)]);
+
+  let dotProduct = 0;
+  let magA = 0;
+  let magB = 0;
+
+  allWords.forEach(w => {
+    const valA = freqA[w] || 0;
+    const valB = freqB[w] || 0;
+    dotProduct += valA * valB;
+    magA += valA * valA;
+    magB += valB * valB;
+  });
+
+  const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
+  return magnitude === 0 ? 0 : dotProduct / magnitude;
+}

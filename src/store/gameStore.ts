@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Box, Profile, Match, PlayerRole, ObjectClass, GameMode, RLHFPrompt, RLHFChoice, JudgeTrack, MatchHistoryEntry, AchievementBadgeId } from '@/lib/types';
-import { scoreMatch } from '@/lib/scoring';
+import { scoreMatch, calculateCosineSimilarity } from '@/lib/scoring';
 import { MOCK_RLHF_PROMPTS } from '@/lib/gameModes';
 import { dbSyncProfile, dbAddMatch, dbGetPrompts, dbCreatePrompt, dbDeletePrompt, dbGetImages, dbCreateImage, dbDeleteImage } from '@/lib/db';
 
@@ -63,7 +63,7 @@ interface GameState {
   judgeTrack: JudgeTrack | null;
 
   // ─── Caption Clash State ───────────────────────────────────────────
-  captionClashCrops: { id: string; image: string; box: Box; originalClass: string }[];
+  captionClashCrops: { id: string; image: string; box: Box; originalClass: string; consensusCaptions?: string[] }[];
   currentCropIndex: number;
 
   // ─── Cyber Siege Hacking State ─────────────────────────────────────
@@ -239,18 +239,33 @@ export const useGameStore = create<GameState>()(
           image: 'https://images.unsplash.com/photo-1519003722824-192d992a6058?auto=format&fit=crop&q=80&w=800',
           box: { id: 'ai-1', x: 200, y: 300, width: 100, height: 150, className: 'car' },
           originalClass: 'car',
+          consensusCaptions: [
+            "A black sedan driving down the street at night.",
+            "A dark-colored modern car parked on a paved city road.",
+            "A sleek dark passenger car parked near a curb."
+          ]
         },
         {
           id: 'crop-2',
           image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=800',
           box: { id: 'ai-2', x: 400, y: 500, width: 200, height: 100, className: 'car' },
           originalClass: 'car',
+          consensusCaptions: [
+            "A close-up of a silver sports car tire and fender.",
+            "An upscale modern performance car wheels parked on asphalt.",
+            "A metallic grey sports vehicle parked outdoors."
+          ]
         },
         {
           id: 'crop-3',
           image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800',
           box: { id: 'ai-3', x: 100, y: 200, width: 50, height: 150, className: 'person' },
           originalClass: 'person',
+          consensusCaptions: [
+            "A person wearing a jacket and backpack walking in the background.",
+            "A pedestrian walking away on the concrete pavement.",
+            "A human figure walking outdoors in a public area."
+          ]
         }
       ],
       currentCropIndex: 0,
@@ -465,7 +480,7 @@ export const useGameStore = create<GameState>()(
         if (updatedProfile) {
           dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
           if (newMatch) {
-            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+            dbAddMatch(newMatch, updatedProfile.id, { boxes }).catch(err => console.error("Error adding match:", err));
           }
         }
       },
@@ -552,11 +567,24 @@ export const useGameStore = create<GameState>()(
 
         const updatedProfile = get().profile;
         const newMatch = get().matchHistory[get().matchHistory.length - 1];
+        const prompt = get().rlhfPrompts[get().currentPromptIndex];
 
         if (updatedProfile) {
           dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
           if (newMatch) {
-            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+            const aLen = prompt.responseA.length;
+            const bLen = prompt.responseB.length;
+            const consensusChoice: RLHFChoice = bLen > aLen ? 'B' : 'A';
+            const agreedWithConsensus = choice === consensusChoice;
+
+            dbAddMatch(newMatch, updatedProfile.id, {
+              promptId: prompt.id,
+              promptText: prompt.prompt,
+              choice,
+              reasoning,
+              agreedWithConsensus,
+              consensusChoice
+            }).catch(err => console.error("Error adding match:", err));
           }
         }
       },
@@ -564,12 +592,25 @@ export const useGameStore = create<GameState>()(
       // ─── Caption Clash Actions ─────────────────────────────────────────
 
       submitCaption: (caption, txSig) => {
-        const isDescriptive = caption.trim().length > 10;
-        const score = isDescriptive ? 100 : 30;
-        const reward = isDescriptive ? 0.20 : 0.05;
+        const activeCrop = get().captionClashCrops[get().currentCropIndex];
+        const referenceCaptions = activeCrop.consensusCaptions || [
+          "A car or person object in the image view."
+        ];
+
+        let maxSimilarity = 0;
+        referenceCaptions.forEach(ref => {
+          const sim = calculateCosineSimilarity(caption, ref);
+          if (sim > maxSimilarity) {
+            maxSimilarity = sim;
+          }
+        });
+
+        const score = Math.max(0, Math.min(100, Math.round(maxSimilarity * 100)));
+        const isConsensus = score >= 35;
+        const reward = isConsensus ? 0.20 : 0.05;
 
         set((state) => {
-          const nextCaptionAlign = Math.min(100, state.modelStats.captionAlign + (isDescriptive ? 0.15 : 0.02));
+          const nextCaptionAlign = Math.min(100, state.modelStats.captionAlign + (isConsensus ? 0.15 : 0.02));
           const newModelStats = {
             ...state.modelStats,
             captionAlign: nextCaptionAlign
@@ -626,7 +667,14 @@ export const useGameStore = create<GameState>()(
         if (updatedProfile) {
           dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
           if (newMatch) {
-            dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+            dbAddMatch(newMatch, updatedProfile.id, {
+              cropId: activeCrop.id,
+              cropImage: activeCrop.image,
+              cropBox: activeCrop.box,
+              caption,
+              score,
+              maxSimilarity
+            }).catch(err => console.error("Error adding match:", err));
           }
         }
       },
@@ -736,7 +784,9 @@ export const useGameStore = create<GameState>()(
             if (updatedProfile) {
               dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
               if (newMatch) {
-                dbAddMatch(newMatch, updatedProfile.id).catch(err => console.error("Error adding match:", err));
+                dbAddMatch(newMatch, updatedProfile.id, {
+                  commandLogs: logs
+                }).catch(err => console.error("Error adding match:", err));
               }
             }
           }

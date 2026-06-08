@@ -148,18 +148,18 @@ describe('useGameStore', () => {
   });
 
   describe('Caption Clash Mode Actions', () => {
-    it('rewards descriptive captions with 100 score and 0.20 tokens', () => {
-      useGameStore.getState().submitCaption('A beautiful blue sports car parked in front of a modern house.');
+    it('rewards descriptive captions with consensus matching score and tokens', () => {
+      useGameStore.getState().submitCaption('A sleek dark passenger car parked near a curb.');
       const state = useGameStore.getState();
       expect(state.matchScore).toBe(100);
       expect(state.earnedTokens).toBe(0.20);
       expect(state.modelStats.captionAlign).toBeGreaterThan(68.10); // starts at 68.10
     });
 
-    it('gives low score and 0.05 tokens for short captions', () => {
+    it('gives low score and 0.05 tokens for unrelated or short captions', () => {
       useGameStore.getState().submitCaption('Short');
       const state = useGameStore.getState();
-      expect(state.matchScore).toBe(30);
+      expect(state.matchScore).toBe(0);
       expect(state.earnedTokens).toBe(0.05);
     });
   });

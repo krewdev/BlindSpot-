@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateIoU, scoreMatch } from './scoring';
+import { calculateIoU, scoreMatch, calculateCosineSimilarity } from './scoring';
 import { Box } from './types';
 
 describe('calculateIoU', () => {
@@ -89,5 +89,34 @@ describe('scoreMatch', () => {
     expect(result.overallScore).toBe(50);
     expect(result.missedCount).toBe(1);
     expect(result.extraCount).toBe(0);
+  });
+});
+
+describe('calculateCosineSimilarity', () => {
+  it('returns 1 for identical text', () => {
+    const text = 'A red sports car speeding on the street';
+    expect(calculateCosineSimilarity(text, text)).toBeCloseTo(1, 10);
+  });
+
+  it('returns 0 for completely disjoint text', () => {
+    const textA = 'apple banana orange';
+    const textB = 'computer screen keyboard';
+    expect(calculateCosineSimilarity(textA, textB)).toBe(0);
+  });
+
+  it('calculates overlap correctly', () => {
+    const textA = 'A black sedan driving down the street.';
+    const textB = 'A dark sedan driving down the road.';
+    // clean textA: ["black", "sedan", "driving", "down", "the", "street"] (length 6)
+    // clean textB: ["dark", "sedan", "driving", "down", "the", "road"] (length 6)
+    // common: ["sedan", "driving", "down", "the"] (length 4)
+    // similarity = 4 / (sqrt(6) * sqrt(6)) = 4/6 = 0.66666667
+    expect(calculateCosineSimilarity(textA, textB)).toBeCloseTo(0.6667, 3);
+  });
+
+  it('ignores punctuation and casing', () => {
+    const textA = 'CAR, Person!';
+    const textB = 'person car';
+    expect(calculateCosineSimilarity(textA, textB)).toBeCloseTo(1, 10);
   });
 });

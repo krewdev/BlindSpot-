@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MessageSquare, Sparkles, ChevronRight, Type, CheckCircle } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -10,6 +10,11 @@ export default function CaptionClash() {
   const { publicKey, signMessage } = useWallet();
   const [caption, setCaption] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    setCaption('');
+    setIsSubmitted(false);
+  }, [currentCropIndex]);
 
   const activeCrop = captionClashCrops[currentCropIndex];
 

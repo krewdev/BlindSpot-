@@ -54,9 +54,13 @@ export async function dbInitSchema() {
         y NUMERIC,
         width NUMERIC,
         height NUMERIC,
+        metadata JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+    // Backwards-compatible schema upgrade for existing tables
+    await client.query('ALTER TABLE annotations ADD COLUMN IF NOT EXISTS metadata JSONB;');
 
     // Verification Votes
     await client.query(`
@@ -162,7 +166,7 @@ export async function dbGetLeaderboard() {
 }
 
 // Record completed match and sync reputation
-export async function dbAddMatch(match: MatchHistoryEntry, profileId: string) {
+export async function dbAddMatch(match: MatchHistoryEntry, profileId: string, metadata?: any) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -175,19 +179,20 @@ export async function dbAddMatch(match: MatchHistoryEntry, profileId: string) {
       [match.id, profileId, match.timestamp]
     );
 
-    // 2. Insert mock annotation (just to populate schema columns)
+    // 2. Insert annotation with high-fidelity telemetry metadata
     const isVision = match.gameMode === 'vision_hunt';
     const isJudge = match.gameMode === 'the_judge';
     const class_name = isVision ? 'car' : isJudge ? 'text-pair' : 'text-caption';
     await client.query(
-      `INSERT INTO annotations (match_id, player_id, role, source, class_name, x, y, width, height, created_at)
-       VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, $6);`,
+      `INSERT INTO annotations (match_id, player_id, role, source, class_name, x, y, width, height, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, $6, $7);`,
       [
         match.id,
         profileId,
         match.role.substring(0, 15),
         'human',
         class_name,
+        metadata ? JSON.stringify(metadata) : null,
         match.timestamp
       ]
     );
@@ -361,5 +366,57 @@ export async function dbGetAnnotationTelemetry() {
         verificationRate: 94.5
       }
     };
+  }
+}
+
+// Fetch logged telemetry annotations from database for Admin Console exporting
+export async function dbGetExportData(mode: 'rlhf' | 'caption' | 'vision' | 'exploit') {
+  try {
+    let query = '';
+    let classNameFilter = '';
+    if (mode === 'rlhf') {
+      classNameFilter = 'text-pair';
+    } else if (mode === 'caption') {
+      classNameFilter = 'text-caption';
+    } else if (mode === 'vision') {
+      classNameFilter = 'car';
+    } else {
+      classNameFilter = 'bug-bounty';
+    }
+
+    if (mode === 'vision') {
+      query = `
+        SELECT a.metadata, m.id as match_id, m.created_at, p.wallet_address
+        FROM annotations a
+        JOIN matches m ON a.match_id = m.id
+        LEFT JOIN profiles p ON a.player_id = p.id
+        WHERE a.class_name IN ('car', 'person', 'box') AND a.metadata IS NOT NULL
+        ORDER BY a.created_at DESC;
+      `;
+    } else if (mode === 'exploit') {
+      query = `
+        SELECT a.metadata, m.id as match_id, m.created_at, p.wallet_address
+        FROM annotations a
+        JOIN matches m ON a.match_id = m.id
+        LEFT JOIN profiles p ON a.player_id = p.id
+        WHERE a.role = 'Hacker' AND a.metadata IS NOT NULL
+        ORDER BY a.created_at DESC;
+      `;
+    } else {
+      query = `
+        SELECT a.metadata, m.id as match_id, m.created_at, p.wallet_address
+        FROM annotations a
+        JOIN matches m ON a.match_id = m.id
+        LEFT JOIN profiles p ON a.player_id = p.id
+        WHERE a.class_name = $1 AND a.metadata IS NOT NULL
+        ORDER BY a.created_at DESC;
+      `;
+    }
+
+    const res = await pool.query(query, mode === 'vision' || mode === 'exploit' ? [] : [classNameFilter]);
+    return { success: true, data: res.rows };
+  } catch (error: any) {
+    console.error(`Failed to fetch export data for ${mode}:`, error);
+    return { success: false, error: error?.message, data: [] };
   }
 }

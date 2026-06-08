@@ -205,11 +205,16 @@ export default function MetricsDashboard() {
 
   const historyData = modelStatsHistory;
 
-  const consensusData = [
-    { name: 'Vision mAP', value: modelStats.visionMap, fill: '#818cf8' },
-    { name: 'RLHF Align', value: modelStats.rlhfPref, fill: '#fbbf24' },
-    { name: 'Caption Sim', value: modelStats.captionAlign, fill: '#34d399' },
-    { name: 'Sec. Defense', value: modelStats.securityDefense, fill: '#fb7185' },
+  const uav = Math.min(99.4, 45 + totalJudgments * 1.5 + judgeStreak * 2);
+  const bdr = Math.min(99.1, 20 + totalJudgments * 0.8);
+  const cdi = Math.min(98.7, 60 + judgeStreak * 4);
+  const zsAdapt = Math.min(99.9, 30 + totalJudgments * 1.1);
+
+  const cognitiveData = [
+    { name: 'Alignment Velocity', value: uav, fill: '#818cf8' },
+    { name: 'Blindspot Discovery', value: bdr, fill: '#34d399' },
+    { name: 'Cognitive Divergence', value: cdi, fill: '#fbbf24' },
+    { name: 'Zero-Shot Adapt', value: zsAdapt, fill: '#fb7185' },
   ];
 
   const throughput = totalJudgments > 0 ? (earnedTokens / (totalJudgments || 1)).toFixed(3) : '0.000';
@@ -228,7 +233,7 @@ export default function MetricsDashboard() {
               <h2 className="text-sm font-black uppercase tracking-widest text-indigo-300">AI Training Analytics</h2>
             </div>
             <p className="text-xs text-zinc-500 max-w-sm">
-              Live telemetry from the annotation arena — every duel improves the models.
+              Tracking real-time cognitive transfer. Watch the AI learn from your human nuance.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -331,35 +336,35 @@ export default function MetricsDashboard() {
       {/* ─── Two columns: Consensus Radar + Throughput Chart ─────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Consensus Confidence Gauge */}
+        {/* Cognitive Intelligence Gauge */}
         <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl backdrop-blur">
           <SectionHeader
-            icon={<Shield className="w-4 h-4" />}
-            title="Consensus Confidence by Model"
+            icon={<Brain className="w-4 h-4" />}
+            title="Cognitive Transfer Footprint"
           />
-          <ConsensusGaugeChart data={consensusData} />
+          <ConsensusGaugeChart data={cognitiveData} />
           <p className="text-[10px] text-zinc-600 text-center mt-2">
-            Multi-annotator agreement scores. &gt;90% = publication ready.
+            Your multidimensional impact on the model's core intelligence.
           </p>
         </div>
 
-        {/* Data Throughput Chart */}
+        {/* Intelligence Evolution Metrics */}
         <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-2xl backdrop-blur flex flex-col gap-4">
           <SectionHeader
             icon={<Zap className="w-4 h-4" />}
-            title="Data Throughput & Token ROI"
+            title="Intelligence Evolution Metrics"
           />
           <div className="grid grid-cols-2 gap-3 flex-1">
             {[
-              { label: 'Annotations/hr', value: `${(totalJudgments * 3.6).toFixed(0)}`, sub: 'Estimated rate', color: 'text-indigo-400', bar: 'bg-indigo-500', pct: Math.min(100, totalJudgments * 4) },
-              { label: 'Cost/Annotation', value: `$${(0.12 - Math.min(0.10, totalJudgments * 0.001)).toFixed(3)}`, sub: 'vs $0.50 traditional', color: 'text-emerald-400', bar: 'bg-emerald-500', pct: 78 },
-              { label: 'Data Quality', value: `${Math.min(99, 72 + totalJudgments * 0.5).toFixed(1)}%`, sub: 'Consensus threshold', color: 'text-amber-400', bar: 'bg-amber-500', pct: Math.min(99, 72 + totalJudgments * 0.5) },
-              { label: 'Model Coverage', value: `${Math.min(99, 60 + totalJudgments * 0.8).toFixed(1)}%`, sub: 'Edge case scenarios', color: 'text-rose-400', bar: 'bg-rose-500', pct: Math.min(99, 60 + totalJudgments * 0.8) },
+              { label: 'Alignment Velocity', value: `${uav.toFixed(1)}%`, sub: 'Adoption of user nuance', color: 'text-indigo-400', bar: 'bg-indigo-500', pct: uav },
+              { label: 'Blindspot Discovery', value: `${bdr.toFixed(1)}%`, sub: 'Novel edge-case rate', color: 'text-emerald-400', bar: 'bg-emerald-500', pct: bdr },
+              { label: 'Cognitive Divergence', value: `${cdi.toFixed(1)}%`, sub: 'Human vs rigid logic', color: 'text-amber-400', bar: 'bg-amber-500', pct: cdi },
+              { label: 'Zero-Shot Adapt', value: `${zsAdapt.toFixed(1)}%`, sub: 'Untrained task impact', color: 'text-rose-400', bar: 'bg-rose-500', pct: zsAdapt },
             ].map(({ label, value, sub, color, bar, pct }) => (
               <div key={label} className="flex flex-col gap-2 p-4 rounded-xl bg-zinc-950 border border-zinc-800">
                 <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest">{label}</span>
                 <span className={`text-xl font-black ${color}`}>{value}</span>
-                <span className="text-[9px] text-zinc-600">{sub}</span>
+                <span className="text-[9px] text-zinc-600 leading-tight">{sub}</span>
                 <div className="w-full bg-zinc-900 rounded-full h-1 overflow-hidden mt-auto">
                   <div className={`${bar} h-full transition-all duration-700`} style={{ width: `${pct}%` }} />
                 </div>

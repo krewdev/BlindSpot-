@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { dbGetAnnotationTelemetry } from '@/lib/db';
+import { dbGetAnnotationTelemetry, dbGetExportData } from '@/lib/db';
 import { RLHFPrompt, Box } from '@/lib/types';
 import { 
   Database, 
@@ -165,53 +165,54 @@ export default function AdminConsole() {
   };
 
   // Export dataset function
-  const handleExportDataset = (format: 'rlhf' | 'vision') => {
+  const handleExportDataset = async (format: 'rlhf' | 'vision' | 'caption' | 'exploit') => {
     let dataToExport: any = [];
     let filename = '';
 
+    const res = await dbGetExportData(format);
+    const dbData = res.success && res.data ? res.data : [];
+
     if (format === 'rlhf') {
       filename = 'blindspot_rlhf_preference_dataset.json';
-      dataToExport = customPrompts.map(p => ({
-        instruction: p.prompt,
-        response_a: p.responseA,
-        response_b: p.responseB,
-        meta: {
-          model_a: p.modelA,
-          model_b: p.modelB,
-          category: p.category,
-          difficulty: p.difficulty
-        }
+      dataToExport = dbData.map((row: any) => ({
+        instruction: row.metadata?.promptText,
+        choice: row.metadata?.choice,
+        reasoning: row.metadata?.reasoning,
+        agreed_with_consensus: row.metadata?.agreedWithConsensus,
+        annotator_wallet: row.wallet_address,
+        timestamp: row.created_at
       }));
-      // Fallback to static if empty to demo format
-      if (dataToExport.length === 0) {
-        dataToExport = [
-          {
-            instruction: "Write a SQL query to find second highest salary.",
-            response_a: "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees);",
-            response_b: "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1;",
-            meta: { model_a: "Model Alpha", model_b: "Model Beta", category: "coding", difficulty: "medium" }
-          }
-        ];
-      }
-    } else {
+    } else if (format === 'caption') {
+      filename = 'blindspot_caption_dataset.json';
+      dataToExport = dbData.map((row: any) => ({
+        image_url: row.metadata?.cropImage,
+        box: row.metadata?.cropBox,
+        caption: row.metadata?.caption,
+        similarity_score: row.metadata?.score,
+        annotator_wallet: row.wallet_address,
+        timestamp: row.created_at
+      }));
+    } else if (format === 'vision') {
       filename = 'blindspot_vision_hunt_bboxes.json';
-      dataToExport = customImages.map(img => ({
-        image_url: img.imageUrl,
-        annotations: img.aiBoxes.map(b => ({
-          class: b.className,
-          box_2d: [b.x, b.y, b.width, b.height]
-        }))
+      dataToExport = dbData.map((row: any) => ({
+        boxes: row.metadata?.boxes || [],
+        match_id: row.match_id,
+        annotator_wallet: row.wallet_address,
+        timestamp: row.created_at
       }));
-      if (dataToExport.length === 0) {
-        dataToExport = [
-          {
-            image_url: "https://images.unsplash.com/photo-1519003722824-192d992a6058?auto=format&fit=crop&q=80&w=800",
-            annotations: [
-              { class: "car", box_2d: [200, 300, 100, 150] }
-            ]
-          }
-        ];
-      }
+    } else if (format === 'exploit') {
+      filename = 'blindspot_exploit_logs.json';
+      dataToExport = dbData.map((row: any) => ({
+        command_logs: row.metadata?.commandLogs || [],
+        match_id: row.match_id,
+        annotator_wallet: row.wallet_address,
+        timestamp: row.created_at
+      }));
+    }
+
+    if (dataToExport.length === 0) {
+      alert(`No telemetry data found for ${format} mode yet.`);
+      return;
     }
 
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -670,7 +671,7 @@ export default function AdminConsole() {
                   RLHF Preference Pairs
                 </span>
                 <span className="text-[9px] text-zinc-600 max-w-xs">
-                  Pairs of prompts with model outputs, optimized for direct Direct Preference Optimization (DPO).
+                  Human choices on prompt pairings, optimized for Direct Preference Optimization (DPO).
                 </span>
                 <button
                   onClick={() => handleExportDataset('rlhf')}
@@ -687,7 +688,7 @@ export default function AdminConsole() {
                   CV Bounding Boxes
                 </span>
                 <span className="text-[9px] text-zinc-600 max-w-xs">
-                  COCO-aligned dataset of images with consensus user drawn bounding box corrections.
+                  Dataset of images with human drawn bounding box corrections.
                 </span>
                 <button
                   onClick={() => handleExportDataset('vision')}
@@ -695,6 +696,40 @@ export default function AdminConsole() {
                 >
                   <Download size={14} />
                   Download Vision JSON
+                </button>
+              </div>
+
+              {/* Exporter Card 3 */}
+              <div className="p-5 bg-zinc-950/80 border border-zinc-850 rounded-2xl flex flex-col items-center gap-4 hover:border-zinc-800 transition-colors">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                  Caption Alignments
+                </span>
+                <span className="text-[9px] text-zinc-600 max-w-xs">
+                  Human descriptive captions for object crops.
+                </span>
+                <button
+                  onClick={() => handleExportDataset('caption')}
+                  className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <Download size={14} />
+                  Download Caption JSON
+                </button>
+              </div>
+
+              {/* Exporter Card 4 */}
+              <div className="p-5 bg-zinc-950/80 border border-zinc-850 rounded-2xl flex flex-col items-center gap-4 hover:border-zinc-800 transition-colors">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                  Exploit Shell Logs
+                </span>
+                <span className="text-[9px] text-zinc-600 max-w-xs">
+                  Terminal command sequences leading to successful exploitation.
+                </span>
+                <button
+                  onClick={() => handleExportDataset('exploit')}
+                  className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <Download size={14} />
+                  Download Exploit JSON
                 </button>
               </div>
             </div>

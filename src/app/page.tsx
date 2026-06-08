@@ -39,6 +39,7 @@ import {
   Trophy,
   Code2,
   Brain,
+  AlertTriangle,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -133,6 +134,7 @@ export default function Home() {
   const [simulatedQueueTime, setSimulatedQueueTime] = useState(0);
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics' | 'profile' | 'dev'>('leaderboard');
   const [mounted, setMounted] = useState(false);
+  const [walletWarning, setWalletWarning] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -323,6 +325,7 @@ export default function Home() {
   const handleStartQueue = () => {
     setSimulatedQueueTime(0);
     setQueueStatus('searching');
+    setWalletWarning(null);
   };
 
   const handleSubmitVision = async () => {
@@ -334,7 +337,10 @@ export default function Home() {
         txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
       } catch (err) {
         console.error("Signature rejected or failed:", err);
+        setWalletWarning("Signature rejected. Submitting off-chain fallback.");
       }
+    } else {
+      setWalletWarning("No wallet connected. Submitting off-chain fallback.");
     }
     submitBoxes(txSig);
   };
@@ -348,7 +354,10 @@ export default function Home() {
         txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
       } catch (err) {
         console.error("Signature rejected or failed:", err);
+        setWalletWarning("Signature rejected. Submitting off-chain fallback.");
       }
+    } else {
+      setWalletWarning("No wallet connected. Submitting off-chain fallback.");
     }
     submitJudgment(choice, reasoning, txSig);
   };
@@ -813,27 +822,41 @@ export default function Home() {
                       >
                         CLEAR CANVAS
                       </button>
+                      {walletWarning && (
+                        <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs flex items-center gap-2 font-semibold">
+                          <AlertTriangle size={14} />
+                          {walletWarning}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Judge stats sidebar */}
                   {gameMode === 'the_judge' && (
-                    <div className="flex flex-col gap-2 mt-4 p-4 rounded-xl bg-zinc-950 border border-zinc-800">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Prompt</span>
-                        <span className="text-zinc-300 font-bold">{currentPromptIndex + 1} / {rlhfPrompts.length}</span>
+                    <div className="flex flex-col gap-2 mt-4">
+                      <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col gap-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Prompt</span>
+                          <span className="text-zinc-300 font-bold">{currentPromptIndex + 1} / {rlhfPrompts.length}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Streak</span>
+                          <span className="text-amber-400 font-bold flex items-center gap-1">
+                            {judgeStreak > 0 && <Flame size={12} />}
+                            {judgeStreak}x
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Total Earned</span>
+                          <span className={`font-bold ${activeColors.text}`}>{earnedTokens.toFixed(2)} BLND</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Streak</span>
-                        <span className="text-amber-400 font-bold flex items-center gap-1">
-                          {judgeStreak > 0 && <Flame size={12} />}
-                          {judgeStreak}x
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Total Earned</span>
-                        <span className={`font-bold ${activeColors.text}`}>{earnedTokens.toFixed(2)} BLND</span>
-                      </div>
+                      {walletWarning && (
+                        <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs flex items-center gap-2 font-semibold">
+                          <AlertTriangle size={14} />
+                          {walletWarning}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

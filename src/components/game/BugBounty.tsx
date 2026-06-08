@@ -9,6 +9,7 @@ export default function BugBounty() {
   const { terminalLogs, terminalChallengeSolved, submitHackingCommand, matchScore } = useGameStore();
   const { publicKey, signMessage } = useWallet();
   const [input, setInput] = useState('');
+  const [walletWarning, setWalletWarning] = useState<string | null>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +37,10 @@ export default function BugBounty() {
           txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
         } catch (err) {
           console.error("Signature rejected or failed:", err);
+          setWalletWarning("Signature rejected. Submitting off-chain fallback.");
         }
+      } else {
+        setWalletWarning("No wallet connected. Submitting off-chain fallback.");
       }
     }
 
@@ -172,6 +176,12 @@ export default function BugBounty() {
                   autoComplete="off"
                 />
               </form>
+            )}
+            {walletWarning && (
+              <div className="mt-2 text-[10px] text-amber-500 font-semibold font-mono flex items-center gap-1.5 px-1">
+                <ShieldAlert size={12} />
+                {walletWarning}
+              </div>
             )}
           </div>
         </div>

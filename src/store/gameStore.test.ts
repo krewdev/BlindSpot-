@@ -233,8 +233,8 @@ describe('useGameStore', () => {
     it('logs completed matches to match history and updates model stats history', () => {
       useGameStore.setState({ profile: mockProfile });
       
-      // Submit descriptive caption
-      useGameStore.getState().submitCaption('A high resolution image of a vintage laptop.');
+      // Submit descriptive caption that matches consensus
+      useGameStore.getState().submitCaption('A sleek dark passenger car parked near a curb.');
       
       const state = useGameStore.getState();
       expect(state.matchHistory).toHaveLength(1);

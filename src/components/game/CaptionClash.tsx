@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { MessageSquare, Sparkles, ChevronRight, Type, CheckCircle } from 'lucide-react';
+import { MessageSquare, Sparkles, ChevronRight, Type, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function CaptionClash() {
@@ -11,9 +11,12 @@ export default function CaptionClash() {
   const [caption, setCaption] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  const [walletWarning, setWalletWarning] = useState<string | null>(null);
+
   useEffect(() => {
     setCaption('');
     setIsSubmitted(false);
+    setWalletWarning(null);
   }, [currentCropIndex]);
 
   const activeCrop = captionClashCrops[currentCropIndex];
@@ -22,7 +25,6 @@ export default function CaptionClash() {
     e.preventDefault();
     if (!caption.trim()) return;
 
-    setIsSubmitted(true);
     let txSig: string | undefined = undefined;
     if (publicKey && signMessage) {
       try {
@@ -31,8 +33,13 @@ export default function CaptionClash() {
         txSig = Array.from(signature, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
       } catch (err) {
         console.error("Signature rejected or failed:", err);
+        setWalletWarning("Signature rejected. Submitting off-chain fallback.");
       }
+    } else {
+       setWalletWarning("No wallet connected. Submitting off-chain fallback.");
     }
+    
+    setIsSubmitted(true);
     submitCaption(caption, txSig);
   };
 
@@ -136,6 +143,13 @@ export default function CaptionClash() {
                   <span className="font-bold text-emerald-400">{matchScore}%</span>
                 </div>
               </div>
+
+              {walletWarning && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-xs flex items-center gap-2 font-semibold mt-2">
+                  <AlertTriangle size={14} />
+                  {walletWarning}
+                </div>
+              )}
             </div>
           )}
         </div>

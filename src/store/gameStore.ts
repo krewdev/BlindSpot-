@@ -567,19 +567,19 @@ export const useGameStore = create<GameState>()(
 
         const updatedProfile = get().profile;
         const newMatch = get().matchHistory[get().matchHistory.length - 1];
-        const prompt = get().rlhfPrompts[get().currentPromptIndex];
+        const currentPrompt = get().rlhfPrompts[get().currentPromptIndex];
 
         if (updatedProfile) {
           dbSyncProfile(updatedProfile).catch(err => console.error("Error syncing profile:", err));
           if (newMatch) {
-            const aLen = prompt.responseA.length;
-            const bLen = prompt.responseB.length;
+            const aLen = currentPrompt.responseA.length;
+            const bLen = currentPrompt.responseB.length;
             const consensusChoice: RLHFChoice = bLen > aLen ? 'B' : 'A';
             const agreedWithConsensus = choice === consensusChoice;
 
             dbAddMatch(newMatch, updatedProfile.id, {
-              promptId: prompt.id,
-              promptText: prompt.prompt,
+              promptId: currentPrompt.id,
+              promptText: currentPrompt.prompt,
               choice,
               reasoning,
               agreedWithConsensus,

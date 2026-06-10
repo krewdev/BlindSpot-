@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useGameStore } from '@/store/gameStore';
 import DrawingCanvas from '@/components/game/DrawingCanvas';
 import JudgeMode from '@/components/game/JudgeMode';
@@ -377,7 +378,7 @@ export default function Home() {
       <header className="border-b border-zinc-800 bg-zinc-900/40 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" className="w-8 h-8 rounded-xl shadow-lg border border-zinc-800/80 object-cover" alt="BlindSpot Logo" />
+            <Image src="/logo.png" width={32} height={32} alt="BlindSpot Logo" className="rounded-xl shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-500/30" />
             <h1 className="font-black tracking-widest text-lg bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
               BLINDSPOT
             </h1>

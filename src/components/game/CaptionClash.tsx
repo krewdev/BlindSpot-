@@ -14,8 +14,11 @@ export default function CaptionClash() {
   const [walletWarning, setWalletWarning] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCaption('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSubmitted(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWalletWarning(null);
   }, [currentCropIndex]);
 
@@ -77,6 +80,7 @@ export default function CaptionClash() {
             className="relative overflow-hidden border border-zinc-800 rounded-2xl bg-zinc-950 shadow-inner flex items-center justify-center"
             style={{ width: containerSize, height: containerSize }}
           >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={activeCrop.image}
               alt="Cropped annotation"

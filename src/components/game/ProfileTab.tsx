@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { AchievementBadgeId, Profile } from '@/lib/types';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWallet } from '@solana/wallet-adapter-react';import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { 
   User, 
   Wallet, 
@@ -15,7 +14,7 @@ import {
   X, 
   LogOut, 
   ExternalLink,
-  ShieldAlert,
+ 
   Calendar,
   Layers,
   Sparkles,

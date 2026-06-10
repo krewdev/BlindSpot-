@@ -166,7 +166,7 @@ export async function dbGetLeaderboard() {
 }
 
 // Record completed match and sync reputation
-export async function dbAddMatch(match: MatchHistoryEntry, profileId: string, metadata?: any) {
+export async function dbAddMatch(match: MatchHistoryEntry, profileId: string, metadata?: Record<string, unknown>) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

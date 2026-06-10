@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useGameStore } from '@/store/gameStore';
 import { Mail, Lock, Loader2 } from 'lucide-react';
@@ -65,7 +66,7 @@ export default function AuthModal({ onLogin }: { onLogin: () => void }) {
         
         <div className="flex flex-col items-center mb-6 relative z-10">
           <div className="mb-4">
-            <img src="/logo.png" className="w-16 h-16 rounded-2xl shadow-lg border border-zinc-800/80 object-cover" alt="BlindSpot Logo" />
+            <Image src="/logo.png" width={64} height={64} className="rounded-2xl shadow-lg border border-zinc-800/80 object-cover" alt="BlindSpot Logo" />
           </div>
           <h2 className="text-2xl font-black tracking-widest text-white uppercase">
             BLINDSPOT

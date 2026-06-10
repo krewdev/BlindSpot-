@@ -96,7 +96,7 @@ interface GameState {
   submitBoxes: (txSig?: string) => void;
 
   // Judge Actions
-  submitJudgment: (choice: RLHFChoice, reasoning: string, txSig?: string) => void;
+  submitJudgment: (choice: RLHFChoice, reasoning: string, txSig?: string, timeMs?: number) => void;
   setJudgeTrack: (track: JudgeTrack) => void;
 
   // Caption Clash Actions

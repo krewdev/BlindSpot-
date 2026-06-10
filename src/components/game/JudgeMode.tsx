@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RLHFPrompt, RLHFChoice } from '@/lib/types';
 import { Scale, Clock, ChevronRight, Sparkles, CheckCircle2, Code2, MessageSquare } from 'lucide-react';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface JudgeModeProps {
   prompt: RLHFPrompt;
@@ -42,7 +43,7 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
       </div>
       <pre
         className="p-4 bg-zinc-950 font-mono leading-relaxed overflow-x-auto max-h-64 text-zinc-300 whitespace-pre"
-        dangerouslySetInnerHTML={{ __html: highlighted }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlighted) }}
       />
     </div>
   );

@@ -62,7 +62,7 @@ export default function Leaderboard() {
     
     if (dbProfiles.length === 0) return mockList;
 
-    const dbEntries: LeaderboardEntry[] = dbProfiles.map((p, idx) => ({
+    const dbEntries: LeaderboardEntry[] = dbProfiles.map((p) => ({
       rank: 0,
       username: p.username || 'Anonymous',
       wallet: p.wallet_address ? `${p.wallet_address.substring(0, 4)}...${p.wallet_address.substring(p.wallet_address.length - 4)}` : 'Guest',

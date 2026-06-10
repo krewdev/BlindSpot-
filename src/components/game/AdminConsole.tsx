@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { dbGetAnnotationTelemetry, dbGetExportData } from '@/lib/db';
 import { RLHFPrompt, Box } from '@/lib/types';
+import Image from 'next/image';
 import { 
   Database, 
   Cpu, 
@@ -166,7 +167,7 @@ export default function AdminConsole() {
 
   // Export dataset function
   const handleExportDataset = async (format: 'rlhf' | 'vision' | 'caption' | 'exploit') => {
-    let dataToExport: any = [];
+    let dataToExport: Record<string, unknown>[] = [];
     let filename = '';
 
     const res = await dbGetExportData(format);
@@ -174,7 +175,7 @@ export default function AdminConsole() {
 
     if (format === 'rlhf') {
       filename = 'blindspot_rlhf_preference_dataset.json';
-      dataToExport = dbData.map((row: any) => ({
+      dataToExport = dbData.map((row: Record<string, unknown>) => ({
         instruction: row.metadata?.promptText,
         choice: row.metadata?.choice,
         reasoning: row.metadata?.reasoning,
@@ -184,7 +185,7 @@ export default function AdminConsole() {
       }));
     } else if (format === 'caption') {
       filename = 'blindspot_caption_dataset.json';
-      dataToExport = dbData.map((row: any) => ({
+      dataToExport = dbData.map((row: Record<string, unknown>) => ({
         image_url: row.metadata?.cropImage,
         box: row.metadata?.cropBox,
         caption: row.metadata?.caption,
@@ -194,7 +195,7 @@ export default function AdminConsole() {
       }));
     } else if (format === 'vision') {
       filename = 'blindspot_vision_hunt_bboxes.json';
-      dataToExport = dbData.map((row: any) => ({
+      dataToExport = dbData.map((row: Record<string, unknown>) => ({
         boxes: row.metadata?.boxes || [],
         match_id: row.match_id,
         annotator_wallet: row.wallet_address,
@@ -202,7 +203,7 @@ export default function AdminConsole() {
       }));
     } else if (format === 'exploit') {
       filename = 'blindspot_exploit_logs.json';
-      dataToExport = dbData.map((row: any) => ({
+      dataToExport = dbData.map((row: Record<string, unknown>) => ({
         command_logs: row.metadata?.commandLogs || [],
         match_id: row.match_id,
         annotator_wallet: row.wallet_address,
@@ -450,7 +451,7 @@ export default function AdminConsole() {
                   <label className="text-[10px] text-zinc-500 font-bold uppercase font-mono">Annotation Bracket</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => setCategory(e.target.value as 'coding' | 'general')}
                     className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500/50"
                   >
                     <option value="coding">Coding Questions (Coding Bracket)</option>
@@ -549,7 +550,7 @@ export default function AdminConsole() {
                   <label className="text-[10px] text-zinc-500 font-bold uppercase font-mono">Target Class</label>
                   <select
                     value={imageClass}
-                    onChange={(e) => setImageClass(e.target.value as any)}
+                    onChange={(e) => setImageClass(e.target.value as 'person' | 'car' | 'box')}
                     className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500/50"
                   >
                     <option value="car">Car</option>
@@ -623,7 +624,7 @@ export default function AdminConsole() {
                   {customImages.map((img) => (
                     <div key={img.id} className="p-3 bg-zinc-950/50 border border-zinc-800 rounded-xl flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 relative flex-shrink-0">
-                        <img src={img.imageUrl} className="object-cover w-full h-full" alt="Dev target" />
+                                                <Image src={img.imageUrl} width={64} height={64} className="object-cover w-full h-full" alt="Dev target" />
                       </div>
                       <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                         <span className="text-[10px] text-zinc-500 font-mono font-bold uppercase truncate">{img.id}</span>

@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -34,7 +32,7 @@ function generateHistory(current: number, label: string) {
   return history;
 }
 
-function mergeHistory(visionMap: number, rlhfPref: number, captionAlign: number, securityDefense: number) {
+export function mergeHistory(visionMap: number, rlhfPref: number, captionAlign: number, securityDefense: number) {
   const v = generateHistory(visionMap, 'vision');
   const r = generateHistory(rlhfPref, 'rlhf');
   const c = generateHistory(captionAlign, 'caption');
@@ -344,7 +342,7 @@ export default function MetricsDashboard() {
           />
           <ConsensusGaugeChart data={cognitiveData} />
           <p className="text-[10px] text-zinc-600 text-center mt-2">
-            Your multidimensional impact on the model's core intelligence.
+            Your multidimensional impact on the model&apos;s core intelligence.
           </p>
         </div>
 

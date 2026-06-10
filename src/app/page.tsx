@@ -137,6 +137,7 @@ export default function Home() {
   const [walletWarning, setWalletWarning] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     dbInitSchema()
       .then((res) => {
@@ -148,7 +149,7 @@ export default function Home() {
         }
       })
       .catch((err) => console.error("Error initializing database schema:", err));
-  }, []);
+  }, [loadQuestionsFromDb]);
 
   const activeModeConfig = GAME_MODES.find((m) => m.id === gameMode)!;
   const activeColors = COLOR_MAP[activeModeConfig.color];
@@ -345,7 +346,7 @@ export default function Home() {
     submitBoxes(txSig);
   };
 
-  const handleSubmitJudge = async (choice: RLHFChoice, reasoning: string) => {
+  const handleSubmitJudge = async (choice: RLHFChoice, reasoning: string, timeMs: number) => {
     let txSig: string | undefined = undefined;
     if (publicKey && signMessage) {
       try {
@@ -359,7 +360,7 @@ export default function Home() {
     } else {
       setWalletWarning("No wallet connected. Submitting off-chain fallback.");
     }
-    submitJudgment(choice, reasoning, txSig);
+    submitJudgment(choice, reasoning, txSig, timeMs);
   };
 
   if (!mounted) {
@@ -740,7 +741,7 @@ export default function Home() {
                 }
               </p>
               <span className={`text-xs font-mono ${activeColors.text} mt-2 font-bold px-3 py-1 ${activeColors.bg} border ${activeColors.border} rounded-full`}>
-                Time elapsed: 0:0{simulatedQueueTime}s
+                Time elapsed: {Math.floor(simulatedQueueTime / 60)}:{String(simulatedQueueTime % 60).padStart(2, '0')}s
               </span>
             </div>
 

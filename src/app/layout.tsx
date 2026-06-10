@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Phantom Duel - PvP Data Annotation & Crypto Payout Arena",
-  description: "Play competitive 1v1 games to possess and seek objects, annotating high-value datasets for AI and robotics while earning PHNTM rewards.",
+  title: "BlindSpot - PvP Data Annotation & Crypto Payout Arena",
+  description: "Play competitive 1v1 games to possess and seek objects, annotating high-value datasets for AI and robotics while earning BLND rewards.",
 };
 
 export default function RootLayout({

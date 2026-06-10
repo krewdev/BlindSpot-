@@ -51,7 +51,7 @@ export default function AdminConsole() {
   const [modelA, setModelA] = useState('Model Alpha');
   const [modelB, setModelB] = useState('Model Beta');
   const [category, setCategory] = useState<'coding' | 'general'>('coding');
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [difficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   // Form State - Images
   const [imageUrl, setImageUrl] = useState('');
@@ -61,21 +61,21 @@ export default function AdminConsole() {
   const [boxW, setBoxW] = useState(150);
   const [boxH, setBoxH] = useState(150);
 
-  // Load telemetry data from database
-  const loadTelemetry = async () => {
-    const res = await dbGetAnnotationTelemetry();
-    if (res.success && res.data) {
-      setTelemetry({
-        totalAnnotations: res.data.totalAnnotations,
-        avgScore: res.data.avgScore,
-        verificationRate: res.data.verificationRate,
-        modeDistribution: res.data.modeDistribution
-      });
-    }
-  };
-
   useEffect(() => {
-    loadTelemetry();
+    let active = true;
+    const fetchTelemetry = async () => {
+      const res = await dbGetAnnotationTelemetry();
+      if (active && res.success && res.data) {
+        setTelemetry({
+          totalAnnotations: res.data.totalAnnotations,
+          avgScore: res.data.avgScore,
+          verificationRate: res.data.verificationRate,
+          modeDistribution: res.data.modeDistribution
+        });
+      }
+    };
+    fetchTelemetry();
+    return () => { active = false; };
   }, [matchHistory]);
 
   const handleAddPrompt = async (e: React.FormEvent) => {

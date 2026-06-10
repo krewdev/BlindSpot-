@@ -413,10 +413,11 @@ export const useGameStore = create<GameState>()(
 
         let finalScore = 0;
         if (boxes.length > 0) {
-          if (overallScore > 10) {
+          if (overallScore > 30) {
             finalScore = 0; // Copied AI
           } else {
-            finalScore = 100; // Found blindspot!
+            // Found a valid blindspot, score proportionally 100 to 50 based on how far it is from AI
+            finalScore = Math.max(50, 100 - Math.round((overallScore / 30) * 50));
           }
         }
 

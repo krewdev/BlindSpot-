@@ -101,10 +101,10 @@ export async function dbInitSchema() {
 
     await client.query('COMMIT');
     return { success: true, message: 'Database schema initialized successfully.' };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('Database initialization failed:', error);
-    return { success: false, error: error?.message || 'Unknown database error' };
+    return { success: false, error: error instanceof Error ? error.message : String(error) || 'Unknown database error' };
   } finally {
     client.release();
   }
@@ -132,9 +132,9 @@ export async function dbSyncProfile(profile: Profile) {
       ]
     );
     return { success: true, data: res.rows[0] };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to sync profile to database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -159,9 +159,9 @@ export async function dbGetLeaderboard() {
     }));
 
     return { success: true, data: profiles };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch leaderboard from database:', error);
-    return { success: false, error: error?.message, data: [] };
+    return { success: false, error: error instanceof Error ? error.message : String(error), data: [] };
   }
 }
 
@@ -199,10 +199,10 @@ export async function dbAddMatch(match: MatchHistoryEntry, profileId: string, me
 
     await client.query('COMMIT');
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('Failed to add match to database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   } finally {
     client.release();
   }
@@ -223,9 +223,9 @@ export async function dbGetPrompts() {
       difficulty: row.difficulty
     }));
     return { success: true, data: prompts };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to query prompts from database:', error);
-    return { success: false, error: error?.message, data: [] };
+    return { success: false, error: error instanceof Error ? error.message : String(error), data: [] };
   }
 }
 
@@ -247,9 +247,9 @@ export async function dbCreatePrompt(prompt: RLHFPrompt) {
       ]
     );
     return { success: true, data: res.rows[0] };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to create prompt in database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -257,9 +257,9 @@ export async function dbDeletePrompt(id: string) {
   try {
     await pool.query('DELETE FROM judge_prompts WHERE id = $1;', [id]);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to delete prompt from database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -273,9 +273,9 @@ export async function dbGetImages() {
       aiBoxes: (typeof row.ai_boxes === 'string' ? JSON.parse(row.ai_boxes) : row.ai_boxes) as Box[]
     }));
     return { success: true, data: images };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to query images from database:', error);
-    return { success: false, error: error?.message, data: [] };
+    return { success: false, error: error instanceof Error ? error.message : String(error), data: [] };
   }
 }
 
@@ -288,9 +288,9 @@ export async function dbCreateImage(id: string, imageUrl: string, aiBoxes: Box[]
       [id, imageUrl, JSON.stringify(aiBoxes)]
     );
     return { success: true, data: res.rows[0] };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to create image in database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -298,9 +298,9 @@ export async function dbDeleteImage(id: string) {
   try {
     await pool.query('DELETE FROM vision_hunt_images WHERE id = $1;', [id]);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to delete image from database:', error);
-    return { success: false, error: error?.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -354,11 +354,11 @@ export async function dbGetAnnotationTelemetry() {
         verificationRate
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch annotation telemetry:', error);
     return {
       success: false,
-      error: error?.message,
+      error: error instanceof Error ? error.message : String(error),
       data: {
         totalAnnotations: 0,
         avgScore: 0,
@@ -415,8 +415,8 @@ export async function dbGetExportData(mode: 'rlhf' | 'caption' | 'vision' | 'exp
 
     const res = await pool.query(query, mode === 'vision' || mode === 'exploit' ? [] : [classNameFilter]);
     return { success: true, data: res.rows };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to fetch export data for ${mode}:`, error);
-    return { success: false, error: error?.message, data: [] };
+    return { success: false, error: error instanceof Error ? error.message : String(error), data: [] };
   }
 }
